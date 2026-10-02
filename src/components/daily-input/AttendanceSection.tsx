@@ -6,6 +6,7 @@ import { Badge } from '../ui/badge'
 import type { Student, AttendanceSession, AttendanceLog } from '@/types/database'
 import { saveAttendanceLogs } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
+import { isHariAktif } from '@/lib/dateUtils'
 
 interface AttendanceSectionProps {
   selectedDate: string
@@ -27,6 +28,8 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
   onUnsavedChangeState,
 }) => {
   const { canEdit, profile } = useAuth()
+  const isWeekend = !isHariAktif(selectedDate)
+  const [isCollapsed, setIsCollapsed] = useState(isWeekend && initialLogs.length === 0)
   const [logsMap, setLogsMap] = useState<Record<number, Record<number, { status: AttendanceStatus; catatan?: string }>>>({})
   const [saving, setSaving] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -50,6 +53,7 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
     setHasUnsavedChanges(false)
     if (onUnsavedChangeState) onUnsavedChangeState(false)
     setErrorMessage(null)
+    setIsCollapsed(!isHariAktif(selectedDate) && initialLogs.length === 0)
   }, [students, sessions, initialLogs, selectedDate])
 
   const setStatus = (studentId: number, sessionId: number, status: AttendanceStatus) => {
@@ -254,6 +258,26 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
         )}
       </CardHeader>
 
+      {isWeekend && (
+        <div className="mx-4 sm:mx-6 mt-4 p-3 rounded-xl bg-neutral-100/90 border border-neutral-200 flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-600">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-neutral-400 shrink-0" />
+            <span className="font-medium">
+              Tidak ada sesi KBM pada hari libur (Jumat & Sabtu).
+            </span>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="text-xs font-semibold text-neutral-800 border-neutral-300 bg-white hover:bg-neutral-50"
+          >
+            {isCollapsed ? 'Buka Form Presensi' : 'Lipat Form'}
+          </Button>
+        </div>
+      )}
+
       {errorMessage && (
         <div className="m-4 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
           <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
@@ -261,8 +285,10 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
         </div>
       )}
 
-      {/* 1. DESKTOP VIEW: Matrix Table (md: and above) */}
-      <CardContent className="p-0 overflow-x-auto hidden md:block">
+      {!isCollapsed && (
+        <>
+          {/* 1. DESKTOP VIEW: Matrix Table (md: and above) */}
+          <CardContent className="p-0 overflow-x-auto hidden md:block">
         <table className="w-full text-left text-sm border-collapse">
           <thead>
             <tr className="border-b border-neutral-200/80 bg-neutral-50/70 text-xs font-semibold text-neutral-600">
@@ -485,6 +511,8 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
           </div>
         )}
       </div>
+      </>
+      )}
 
       {activeNoteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs p-4 animate-in fade-in">

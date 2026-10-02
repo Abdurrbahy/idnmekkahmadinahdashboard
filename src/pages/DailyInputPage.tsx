@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useSearchParams, useOutletContext } from 'react-router-dom'
 import {
   UserCheck,
   BookOpen,
@@ -33,6 +34,7 @@ import {
   fetchActivities,
   fetchWeeklyAttendance,
   fetchWeeklyQuran,
+  fetchWeeklyQuiz,
   fetchWeeklyMutabaah,
   fetchWeeklyActivities,
   fetchWeeklyAttendanceLogs,
@@ -50,18 +52,47 @@ import type {
   Activity,
   WeeklyAttendance,
   WeeklyQuran,
+  WeeklyQuiz,
   WeeklyMutabaah,
 } from '@/types/database'
 
 type TabType = 'all' | 'attendance' | 'quran' | 'mutabaah' | 'activities'
 
+interface OutletContextType {
+  onToggleSidebar?: () => void
+}
+
 export const DailyInputPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { onToggleSidebar } = useOutletContext<OutletContextType>() || {}
+
+  const modeParam = searchParams.get('mode') === 'weekly' ? 'weekly' : 'daily'
   const [selectedDate, setSelectedDate] = useState<string>(todayRiyadh())
-  const [viewMode, setViewMode] = useState<ViewMode>('daily')
+  const [viewMode, setViewMode] = useState<ViewMode>(modeParam)
   const [activeTab, setActiveTab] = useState<TabType>('all')
   const [isConfigOpen, setIsConfigOpen] = useState(false)
   const [hasAttendanceUnsaved, setHasAttendanceUnsaved] = useState(false)
   const [hasMutabaahUnsaved, setHasMutabaahUnsaved] = useState(false)
+
+  // Sync viewMode with URL searchParams
+  useEffect(() => {
+    const urlMode = searchParams.get('mode') === 'weekly' ? 'weekly' : 'daily'
+    if (urlMode !== viewMode) {
+      setViewMode(urlMode)
+    }
+  }, [searchParams])
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode)
+    setSearchParams((prev) => {
+      if (mode === 'weekly') {
+        prev.set('mode', 'weekly')
+      } else {
+        prev.delete('mode')
+      }
+      return prev
+    })
+  }
 
   // Master Data
   const [students, setStudents] = useState<Student[]>([])
@@ -79,6 +110,7 @@ export const DailyInputPage: React.FC = () => {
   // Weekly Stats & Raw 7-day Logs
   const [weeklyAttendance, setWeeklyAttendance] = useState<WeeklyAttendance[]>([])
   const [weeklyQuran, setWeeklyQuran] = useState<WeeklyQuran[]>([])
+  const [weeklyQuiz, setWeeklyQuiz] = useState<WeeklyQuiz[]>([])
   const [weeklyMutabaah, setWeeklyMutabaah] = useState<WeeklyMutabaah[]>([])
   const [weeklyActivities, setWeeklyActivities] = useState<Activity[]>([])
   const [weeklyRawAttendance, setWeeklyRawAttendance] = useState<AttendanceLog[]>([])
@@ -146,9 +178,10 @@ export const DailyInputPage: React.FC = () => {
   const loadWeeklyData = useCallback(async (date: string) => {
     const pMulai = pekanMulai(date)
     try {
-      const [wAtt, wQur, wMut, wAct, wRawAtt, wRawSubs] = await Promise.all([
+      const [wAtt, wQur, wQuiz, wMut, wAct, wRawAtt, wRawSubs] = await Promise.all([
         fetchWeeklyAttendance(pMulai),
         fetchWeeklyQuran(pMulai),
+        fetchWeeklyQuiz(pMulai),
         fetchWeeklyMutabaah(pMulai),
         fetchWeeklyActivities(pMulai),
         fetchWeeklyAttendanceLogs(pMulai),
@@ -156,6 +189,7 @@ export const DailyInputPage: React.FC = () => {
       ])
       setWeeklyAttendance(wAtt)
       setWeeklyQuran(wQur)
+      setWeeklyQuiz(wQuiz)
       setWeeklyMutabaah(wMut)
       setWeeklyActivities(wAct)
       setWeeklyRawAttendance(wRawAtt)
@@ -203,10 +237,12 @@ export const DailyInputPage: React.FC = () => {
     <div className="min-h-screen bg-neutral-100/60 pb-20 text-neutral-900 font-sans">
       {/* Header */}
       <Header
+        pageTitle={viewMode === 'daily' ? 'Input Harian' : 'Rekap Pekanan'}
         viewMode={viewMode}
-        onViewModeChange={setViewMode}
+        onViewModeChange={handleViewModeChange}
         selectedDate={selectedDate}
         onDateChange={setSelectedDate}
+        onToggleSidebar={onToggleSidebar}
         isConfigured={isConfigured}
         onOpenConfig={() => setIsConfigOpen(true)}
         hasUnsavedChanges={hasAnyUnsavedChanges}
@@ -218,6 +254,7 @@ export const DailyInputPage: React.FC = () => {
           <>
             {/* Top Metric Cards */}
             <DailySummaryCard
+              selectedDate={selectedDate}
               students={students}
               attendanceLogs={attendanceLogs}
               attendanceSessions={attendanceSessions}
@@ -310,6 +347,7 @@ export const DailyInputPage: React.FC = () => {
             students={students}
             weeklyAttendance={weeklyAttendance}
             weeklyQuran={weeklyQuran}
+            weeklyQuiz={weeklyQuiz}
             weeklyMutabaah={weeklyMutabaah}
             weeklyActivities={weeklyActivities}
             rawAttendanceLogs={weeklyRawAttendance}

@@ -56,9 +56,24 @@ export interface Subject {
   nama: string
   kategori: 'quran' | 'bahasa_arab' | 'mutun' | 'akademik'
   jenis_setoran: 'ziyadah' | 'murajaah' | 'mutun' | 'mufradat' | 'bahasa_arab'
+  mode_input?: 'quran' | 'kuis' | 'jumlah'
   urutan: number
   aktif: boolean
   created_at?: string
+}
+
+export interface KitabBab {
+  id: number
+  subject_id: number
+  kitab: string
+  jilid?: string | null
+  nomor_bab: number
+  judul_bab: string
+  halaman?: number | null
+  urutan: number
+  aktif: boolean
+  created_at?: string
+  subject?: Subject
 }
 
 export interface AttendanceSession {
@@ -100,6 +115,7 @@ export interface Submission {
   student?: Student
   subject?: Subject
   quran_details?: QuranSubmissionDetail[]
+  quiz_details?: QuizSubmissionDetail[]
 }
 
 export interface QuranSubmissionDetail {
@@ -112,6 +128,17 @@ export interface QuranSubmissionDetail {
   created_at?: string
   surah_awal_info?: Surah
   surah_akhir_info?: Surah
+}
+
+export interface QuizSubmissionDetail {
+  id?: number
+  submission_id?: number
+  kitab_bab_id?: number | null
+  kitab_manual?: string | null
+  soal_benar: number
+  soal_total: number
+  created_at?: string
+  kitab_bab?: KitabBab
 }
 
 export interface MutabaahActivity {
@@ -206,6 +233,7 @@ export interface WeeklyAttendance {
   n_sakit: number
   n_alpa: number
   total_sesi: number
+  hari_aktif_terisi?: number
   persen_kehadiran: number
 }
 
@@ -222,6 +250,18 @@ export interface WeeklyQuran {
   rata_nilai: number | null
 }
 
+export interface WeeklyQuiz {
+  pekan_mulai: string
+  pekan_selesai?: string
+  student_id: number
+  mapel: string
+  jumlah_kuis: number
+  total_benar: number
+  total_soal: number
+  rata_nilai: number | null
+  bab_terakhir?: string | null
+}
+
 export interface WeeklyMutabaah {
   pekan_mulai: string
   pekan_selesai: string
@@ -233,8 +273,109 @@ export interface WeeklyMutabaah {
 
 export interface DailyCompleteness {
   tanggal: string
+  hari_aktif?: boolean
   n_presensi: number
   n_setoran: number
   n_mutabaah: number
   n_kegiatan: number
 }
+
+// --- WEEKLY PROGRESS REPORT (INTERNAL ATASAN) ---
+
+export interface WeeklyReport {
+  id?: number
+  pekan_mulai: string
+  status: 'draft' | 'final'
+  catatan_umum?: string | null
+  rencana_pekan_depan?: string | null
+  kendala?: string | null
+  created_at?: string
+  updated_at?: string
+  created_by?: string | null
+}
+
+export interface ReportProgressItem {
+  id?: number
+  report_id: number
+  urutan: number
+  kegiatan: string
+  tanggal?: string | null
+  hasil?: string | null
+  status: 'rencana' | 'proses' | 'selesai' | 'tertunda'
+  rptl?: string | null
+  created_at?: string
+  updated_at?: string
+  created_by?: string | null
+}
+
+export interface ReportStudentIssue {
+  id?: number
+  report_id: number
+  urutan: number
+  tanggal?: string | null
+  student_id?: number | null
+  nama_lain?: string | null
+  konteks?: string | null
+  masalah: string
+  penanganan?: string | null
+  hasil?: string | null
+  created_at?: string
+  updated_at?: string
+  created_by?: string | null
+  student?: Student
+}
+
+export interface TeacherJournalActivity {
+  id: number
+  kode: string
+  nama: string
+  urutan: number
+  aktif: boolean
+}
+
+export interface TeacherJournalRecord {
+  id?: number
+  report_id: number
+  activity_id: number
+  status: 'completed' | 'partial' | 'not_done'
+  catatan?: string | null
+  created_at?: string
+  updated_at?: string
+  created_by?: string | null
+  activity?: TeacherJournalActivity
+}
+
+export interface ReportSocialMedia {
+  id?: number
+  report_id: number
+  urutan: number
+  kegiatan: string
+  progress?: string | null
+  keterangan?: string | null
+  created_at?: string
+  updated_at?: string
+  created_by?: string | null
+}
+
+export interface KasTransaksi {
+  id?: number
+  kelompok: 'santri' | 'koordinator'
+  tanggal: string
+  kebutuhan: string
+  kategori: 'akomodasi' | 'keberangkatan' | 'operasional' | 'pendidikan' | 'lainnya'
+  volume: number
+  satuan: string
+  harga: number
+  arah: 'masuk' | 'keluar'
+  keterangan?: string | null
+  created_at?: string
+  updated_at?: string
+  created_by?: string | null
+}
+
+export interface VKasTransaksi extends KasTransaksi {
+  kredit: number
+  debit: number
+  sisa_saldo: number
+}
+

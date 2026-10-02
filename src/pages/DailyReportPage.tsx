@@ -13,7 +13,13 @@ import {
   todayRiyadh,
   formatDateRiyadh,
   addDaysToDate,
+  isHariAktif,
 } from '@/lib/dateUtils'
+import {
+  cetakDenganNama,
+  namaFileLaporanHarian,
+} from '@/lib/printUtils'
+import logoIDN from '@/assets/logo-idn-mekkah-madinah.png'
 import {
   fetchStudents,
   fetchAttendanceSessions,
@@ -192,7 +198,11 @@ export const DailyReportPage: React.FC = () => {
 
   const overallTotalAyat = useMemo(() => {
     return submissions
-      .filter((s) => visibleStudents.some((st) => st.id === s.student_id))
+      .filter(
+        (s) =>
+          visibleStudents.some((st) => st.id === s.student_id) &&
+          (s.satuan === 'ayat' || s.jenis === 'ziyadah' || s.jenis === 'murajaah')
+      )
       .reduce((acc, curr) => acc + (Number(curr.capaian) || 0), 0)
   }, [submissions, visibleStudents])
 
@@ -294,8 +304,15 @@ export const DailyReportPage: React.FC = () => {
               <Button
                 variant="default"
                 size="sm"
-                onClick={() => window.print()}
-                className="bg-neutral-900 text-white hover:bg-neutral-800 font-bold text-xs gap-1.5"
+                onClick={() => {
+                  const santriNama =
+                    santriParam !== 'all' && visibleStudents.length === 1
+                      ? visibleStudents[0].nama
+                      : null
+                  const fileName = namaFileLaporanHarian(santriNama, tanggalParam)
+                  cetakDenganNama(fileName)
+                }}
+                className="bg-neutral-900 text-white hover:bg-neutral-800 font-bold text-xs gap-1.5 shadow-2xs"
               >
                 <Printer className="h-4 w-4" />
                 Cetak / Simpan PDF
@@ -338,22 +355,21 @@ export const DailyReportPage: React.FC = () => {
             {/* C1. KOP LAPORAN */}
             <div className="border-b border-neutral-900 pb-3 flex items-start justify-between gap-4">
               <div>
-                <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-neutral-900 text-white font-bold text-xs tracking-wider">
-                    IDN
-                  </div>
-                  <div>
-                    <h2 className="text-xs font-bold uppercase tracking-wide text-neutral-700">
-                      IDN Boarding School
-                    </h2>
-                    <p className="text-[11px] text-neutral-500">Program Mekkah & Madinah</p>
-                  </div>
-                </div>
+                <img
+                  src={logoIDN}
+                  alt="IDN Boarding School"
+                  className="h-10 sm:h-12 w-auto object-contain print:h-[14mm] print:w-auto print:opacity-100"
+                />
                 <h1 className="text-xl font-bold tracking-tight text-neutral-900 mt-2">
                   Laporan Harian Santri
                 </h1>
                 <p className="text-xs font-semibold text-neutral-700 mt-0.5">
                   {formatDateRiyadh(tanggalParam)}
+                  {!isHariAktif(tanggalParam) && (
+                    <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-neutral-100 text-neutral-600 border border-neutral-300">
+                      (Hari Libur)
+                    </span>
+                  )}
                 </p>
               </div>
 
@@ -371,7 +387,7 @@ export const DailyReportPage: React.FC = () => {
             <div className="grid grid-cols-4 gap-2 border border-neutral-200 rounded-lg p-3 text-center print-avoid-break">
               <div>
                 <div className="text-lg font-bold text-neutral-900">
-                  {overallAttendancePct}%
+                  {!isHariAktif(tanggalParam) && attendanceLogs.length === 0 ? '—' : `${overallAttendancePct}%`}
                 </div>
                 <div className="text-[10px] text-neutral-500 uppercase tracking-wider font-semibold">
                   Kehadiran Sesi
@@ -405,10 +421,24 @@ export const DailyReportPage: React.FC = () => {
 
             {/* C3. TABEL PRESENSI (Matriks Santri x 4 Sesi) */}
             <div className="space-y-1.5 print-avoid-break">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-900">
-                I. Presensi Harian (4 Sesi)
-              </h3>
-              <table className="w-full text-left text-xs border border-neutral-300 border-collapse">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-900">
+                  I. Presensi Harian (4 Sesi)
+                </h3>
+                {!isHariAktif(tanggalParam) && (
+                  <span className="text-[10px] text-neutral-500 italic">
+                    Jadwal Libur Akhir Pekan
+                  </span>
+                )}
+              </div>
+
+              {!isHariAktif(tanggalParam) && attendanceLogs.length === 0 ? (
+                <div className="p-3 text-center border border-neutral-200 rounded-md bg-neutral-50/50 text-xs text-neutral-500 italic">
+                  Tidak ada sesi KBM — hari libur (Jumat / Sabtu)
+                </div>
+              ) : (
+                <>
+                  <table className="w-full text-left text-xs border border-neutral-300 border-collapse">
                 <thead>
                   <tr className="bg-neutral-100 border-b border-neutral-300 font-bold text-neutral-800 text-[11px]">
                     <th className="py-2 px-2.5 border-r border-neutral-300">Nama Santri</th>
@@ -509,22 +539,24 @@ export const DailyReportPage: React.FC = () => {
                 <span><b>S</b> = Sakit</span>
                 <span><b>A</b> = Alpa</span>
               </div>
+              </>
+              )}
             </div>
 
-            {/* C4. SETORAN AL-QUR'AN & HAFALAN */}
+            {/* C4. SETORAN AL-QUR'AN & PEMBELAJARAN */}
             <div className="space-y-1.5 print-avoid-break">
               <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-900">
-                II. Setoran Al-Qur'an & Hafalan
+                II. Setoran Al-Qur'an, Hafalan & Kuis
               </h3>
               <table className="w-full text-left text-xs border border-neutral-300 border-collapse">
                 <thead>
                   <tr className="bg-neutral-100 border-b border-neutral-300 font-bold text-neutral-800 text-[11px]">
                     <th className="py-2 px-2.5 border-r border-neutral-300">Nama Santri</th>
-                    <th className="py-2 px-2 border-r border-neutral-300">Materi / Jenis</th>
-                    <th className="py-2 px-2 border-r border-neutral-300">Rentang Hafalan</th>
-                    <th className="py-2 px-2 text-center border-r border-neutral-300">Capaian</th>
-                    <th className="py-2 px-2 text-center border-r border-neutral-300">Kelancaran</th>
-                    <th className="py-2 px-2 text-center border-r border-neutral-300">Nilai</th>
+                    <th className="py-2 px-2 border-r border-neutral-300">Mata Pelajaran</th>
+                    <th className="py-2 px-2 border-r border-neutral-300">Materi / Bab / Ayat</th>
+                    <th className="py-2 px-2 text-center border-r border-neutral-300 w-24">Capaian</th>
+                    <th className="py-2 px-2 text-center border-r border-neutral-300 w-24">Status</th>
+                    <th className="py-2 px-2 text-center border-r border-neutral-300 w-16">Nilai</th>
                     <th className="py-2 px-2.5">Catatan Ustadz</th>
                   </tr>
                 </thead>
@@ -544,7 +576,7 @@ export const DailyReportPage: React.FC = () => {
                             colSpan={6}
                             className="py-2 px-2.5 italic text-neutral-400 text-center"
                           >
-                            Tidak ada setoran tercatat hari ini
+                            Tidak ada setoran atau kuis tercatat hari ini
                           </td>
                         </tr>
                       )
@@ -552,33 +584,63 @@ export const DailyReportPage: React.FC = () => {
 
                     return stSubs.map((sub, idx) => {
                       const qDetail = sub.quran_details?.[0]
-                      const sAwal = qDetail
-                        ? ALL_SURAHS.find((s) => s.nomor === qDetail.surah_awal)?.nama_latin
-                        : ''
-                      const sAkhir = qDetail
-                        ? ALL_SURAHS.find((s) => s.nomor === qDetail.surah_akhir)?.nama_latin
-                        : ''
+                      const quizDetail = sub.quiz_details?.[0]
+                      const isKuis = sub.subject?.mode_input === 'kuis' || Boolean(quizDetail)
 
-                      const rangeText = qDetail
-                        ? `${sAwal} ${qDetail.ayat_awal} – ${sAkhir} ${qDetail.ayat_akhir}`
-                        : `${sub.capaian} ${sub.satuan}`
+                      let materiText = `${sub.capaian} ${sub.satuan}`
+                      let capaianText = `${sub.capaian} ${sub.satuan}`
+                      let statusText = sub.status.replace('_', ' ')
+
+                      if (qDetail) {
+                        const sAwal =
+                          ALL_SURAHS.find((s) => s.nomor === qDetail.surah_awal)?.nama_latin || ''
+                        const sAkhir =
+                          ALL_SURAHS.find((s) => s.nomor === qDetail.surah_akhir)?.nama_latin || ''
+                        materiText = `${sAwal} (${qDetail.ayat_awal}) s/d ${sAkhir} (${qDetail.ayat_akhir})`
+                        capaianText = `${sub.capaian} ayat`
+                        statusText =
+                          sub.status === 'lancar'
+                            ? 'Lancar'
+                            : sub.status === 'kurang_lancar'
+                            ? 'Kurang Lancar'
+                            : 'Mengulang'
+                      } else if (isKuis && quizDetail) {
+                        const b = quizDetail.kitab_bab
+                        materiText = b
+                          ? `${b.kitab} ${b.jilid ? 'jilid ' + b.jilid + ' ' : ''}— Bab ${b.nomor_bab}: ${b.judul_bab}`
+                          : quizDetail.kitab_manual || 'Kuis Harian'
+                        capaianText = `${quizDetail.soal_benar}/${quizDetail.soal_total} soal`
+                        statusText =
+                          sub.status === 'lancar'
+                            ? 'Tuntas'
+                            : sub.status === 'kurang_lancar'
+                            ? 'Perlu Perbaikan'
+                            : 'Remedial'
+                      } else {
+                        statusText =
+                          sub.status === 'lancar'
+                            ? 'Lancar'
+                            : sub.status === 'kurang_lancar'
+                            ? 'Kurang Lancar'
+                            : 'Mengulang'
+                      }
 
                       return (
                         <tr key={`${st.id}-${sub.id || idx}`}>
                           <td className="py-2 px-2.5 border-r border-neutral-200 font-semibold text-neutral-900">
                             {idx === 0 ? st.nama : ''}
                           </td>
-                          <td className="py-2 px-2 border-r border-neutral-200 capitalize">
+                          <td className="py-2 px-2 border-r border-neutral-200 capitalize font-medium">
                             {sub.subject?.nama || sub.jenis}
                           </td>
-                          <td className="py-2 px-2 border-r border-neutral-200 font-medium">
-                            {rangeText}
+                          <td className="py-2 px-2 border-r border-neutral-200 font-normal">
+                            {materiText}
                           </td>
                           <td className="py-2 px-2 text-center border-r border-neutral-200 font-bold">
-                            {sub.capaian} {sub.satuan}
+                            {capaianText}
                           </td>
-                          <td className="py-2 px-2 text-center border-r border-neutral-200 capitalize">
-                            {sub.status.replace('_', ' ')}
+                          <td className="py-2 px-2 text-center border-r border-neutral-200 capitalize font-semibold">
+                            {statusText}
                           </td>
                           <td className="py-2 px-2 text-center border-r border-neutral-200 font-bold">
                             {sub.nilai !== null && sub.nilai !== undefined

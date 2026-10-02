@@ -26,11 +26,9 @@ export const formatDateShortRiyadh = (dateStr: string): string => {
   try {
     const parts = dateStr.split('-').map(Number)
     const d = new Date(parts[0], parts[1] - 1, parts[2])
-    return d.toLocaleDateString('id-ID', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-    })
+    const dayNames = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+    return `${dayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]}`
   } catch {
     return dateStr
   }
@@ -79,12 +77,45 @@ export const formatPekanDisplay = (pekanMulaiStr: string): string => {
     const d1 = new Date(d1Parts[0], d1Parts[1] - 1, d1Parts[2])
     const d2 = new Date(d2Parts[0], d2Parts[1] - 1, d2Parts[2])
 
-    const str1 = d1.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })
-    const str2 = d2.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+    const dayNames = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
-    return `${str1} — ${str2}`
+    const sameMonth = d1.getMonth() === d2.getMonth()
+    const sameYear = d1.getFullYear() === d2.getFullYear()
+
+    if (sameMonth && sameYear) {
+      return `${dayNames[d1.getDay()]}, ${d1.getDate()} — ${dayNames[d2.getDay()]}, ${d2.getDate()} ${monthNames[d2.getMonth()]} ${d2.getFullYear()}`
+    } else if (sameYear) {
+      return `${dayNames[d1.getDay()]}, ${d1.getDate()} ${monthNames[d1.getMonth()]} — ${dayNames[d2.getDay()]}, ${d2.getDate()} ${monthNames[d2.getMonth()]} ${d2.getFullYear()}`
+    } else {
+      return `${dayNames[d1.getDay()]}, ${d1.getDate()} ${monthNames[d1.getMonth()]} ${d1.getFullYear()} — ${dayNames[d2.getDay()]}, ${d2.getDate()} ${monthNames[d2.getMonth()]} ${d2.getFullYear()}`
+    }
   } catch {
     return `${pekanMulaiStr} — ${pekanSelesai(pekanMulaiStr)}`
+  }
+}
+
+/**
+ * Super compact week range for mobile header, e.g. "6 — 12 Sep" or "30 Agu — 5 Sep"
+ */
+export const formatPekanMobile = (pekanMulaiStr: string): string => {
+  try {
+    const pSelesaiStr = pekanSelesai(pekanMulaiStr)
+    const d1Parts = pekanMulaiStr.split('-').map(Number)
+    const d2Parts = pSelesaiStr.split('-').map(Number)
+
+    const d1 = new Date(d1Parts[0], d1Parts[1] - 1, d1Parts[2])
+    const d2 = new Date(d2Parts[0], d2Parts[1] - 1, d2Parts[2])
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+
+    if (d1.getMonth() === d2.getMonth()) {
+      return `${d1.getDate()} — ${d2.getDate()} ${monthNames[d2.getMonth()]}`
+    } else {
+      return `${d1.getDate()} ${monthNames[d1.getMonth()]} — ${d2.getDate()} ${monthNames[d2.getMonth()]}`
+    }
+  } catch {
+    return pekanMulaiStr
   }
 }
 
@@ -93,6 +124,7 @@ export const formatPekanDisplay = (pekanMulaiStr: string): string => {
  */
 export const getDaysInWeek = (pekanMulaiStr: string): { date: string; dayName: string; shortDate: string }[] => {
   const dayNames = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
   const res: { date: string; dayName: string; shortDate: string }[] = []
   for (let i = 0; i < 7; i++) {
     const date = addDaysToDate(pekanMulaiStr, i)
@@ -101,10 +133,22 @@ export const getDaysInWeek = (pekanMulaiStr: string): { date: string; dayName: s
     res.push({
       date,
       dayName: dayNames[i],
-      shortDate: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+      shortDate: `${d.getDate()} ${monthNames[d.getMonth()]}`,
     })
   }
   return res
+}
+
+/** Ahad(0) – Kamis(4) adalah hari aktif; Jumat(5) & Sabtu(6) libur */
+export const isHariAktif = (dateStr: string): boolean => {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const day = new Date(y, m - 1, d).getDay()
+  return day <= 4
+}
+
+/** 5 hari aktif dalam pekan: Ahad – Kamis */
+export const getActiveDaysInWeek = (pekanMulaiStr: string): { date: string; dayName: string; shortDate: string }[] => {
+  return getDaysInWeek(pekanMulaiStr).filter((d) => isHariAktif(d.date))
 }
 
 /**

@@ -112,4 +112,37 @@
     box-shadow: none !important;
     text-shadow: none !important;
   }
+
+  /* 16:9 Landscape Presentation Slides */
+  body.landscape-presentation {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  body.landscape-presentation .slide {
+    width: 338mm !important;
+    height: 190mm !important;
+    max-height: 190mm !important;
+    padding: 14mm 16mm !important;
+    break-after: page !important;
+    page-break-after: always !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+  }
+
+  body.landscape-presentation .slide:last-child {
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
 }
+

@@ -17,8 +17,10 @@ import type {
   MutabaahActivity,
   Activity,
 } from '@/types/database'
+import { isHariAktif } from '@/lib/dateUtils'
 
 interface DailySummaryCardProps {
+  selectedDate?: string
   students: Student[]
   attendanceLogs: AttendanceLog[]
   attendanceSessions: AttendanceSession[]
@@ -29,6 +31,7 @@ interface DailySummaryCardProps {
 }
 
 export const DailySummaryCard: React.FC<DailySummaryCardProps> = ({
+  selectedDate,
   students,
   attendanceLogs,
   attendanceSessions,
@@ -37,6 +40,7 @@ export const DailySummaryCard: React.FC<DailySummaryCardProps> = ({
   mutabaahActivities,
   activities,
 }) => {
+  const isWeekend = selectedDate ? !isHariAktif(selectedDate) : false
   // 1. Attendance Summary
   const totalSessionsPossible = Math.max(1, students.length * attendanceSessions.length)
   const hadirLogs = attendanceLogs.filter((l) => l.status === 'hadir')
@@ -91,14 +95,24 @@ export const DailySummaryCard: React.FC<DailySummaryCardProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold tracking-tight text-neutral-900">
-              {attendanceRate}%
+              {isWeekend && hadirLogs.length === 0 ? '—' : `${attendanceRate}%`}
             </span>
-            <span className="text-xs text-neutral-500 font-medium">
-              ({hadirLogs.length}/{totalSessionsPossible} Sesi)
-            </span>
+            {isWeekend && hadirLogs.length === 0 ? (
+              <Badge variant="secondary" className="text-[10px] py-0 px-1.5 font-bold">
+                Hari Libur
+              </Badge>
+            ) : (
+              <span className="text-xs text-neutral-500 font-medium">
+                ({hadirLogs.length}/{totalSessionsPossible} Sesi)
+              </span>
+            )}
           </div>
           <p className="mt-1 text-[11px] text-neutral-400">
-            {attendanceRate === 100 ? 'Semua santri hadir lengkap' : `${totalSessionsPossible - hadirLogs.length} sesi belum hadir`}
+            {isWeekend && hadirLogs.length === 0
+              ? 'Tidak ada KBM wajib di akhir pekan'
+              : attendanceRate === 100
+              ? 'Semua santri hadir lengkap'
+              : `${totalSessionsPossible - hadirLogs.length} sesi belum hadir`}
           </p>
         </CardContent>
       </Card>
@@ -119,7 +133,9 @@ export const DailySummaryCard: React.FC<DailySummaryCardProps> = ({
             <span className="text-xs text-neutral-500 font-medium">Ayat Hari Ini</span>
           </div>
           <div className="mt-1 text-[11px]">
-            {notSubmittedStudents.length === 0 ? (
+            {isWeekend && submissions.length === 0 ? (
+              <span className="text-neutral-400 font-medium">Libur KBM (Opsional)</span>
+            ) : notSubmittedStudents.length === 0 ? (
               <span className="text-emerald-700 font-medium flex items-center gap-1">
                 <CheckCircle2 className="h-3 w-3" /> 4/4 Santri sudah menyetor
               </span>

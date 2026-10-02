@@ -1,4 +1,4 @@
-import type { Student, Surah, Subject, AttendanceSession, MutabaahActivity, ActivityType } from '@/types/database'
+import type { Student, Surah, Subject, KitabBab, AttendanceSession, MutabaahActivity, ActivityType } from '@/types/database'
 
 export const DEFAULT_STUDENTS: Student[] = [
   { id: 1, nama: 'Ahmad Faaiz Al Ghufron', kelas: '12', status: 'aktif', catatan: 'Kelas 12 - Program Mekkah & Madinah' },
@@ -15,18 +15,54 @@ export const DEFAULT_ATTENDANCE_SESSIONS: AttendanceSession[] = [
 ]
 
 export const DEFAULT_SUBJECTS: Subject[] = [
-  { id: 1, kode: 'TAHFIDZ', nama: "Tahfidz Al-Qur'an", kategori: 'quran', jenis_setoran: 'ziyadah', urutan: 1, aktif: true },
-  { id: 2, kode: 'ZIYADAH', nama: 'Ziyadah (Hafalan Baru)', kategori: 'quran', jenis_setoran: 'ziyadah', urutan: 2, aktif: true },
-  { id: 3, kode: 'MURAJAAH', nama: 'Murajaah (Ulangan)', kategori: 'quran', jenis_setoran: 'murajaah', urutan: 3, aktif: true },
-  { id: 4, kode: 'MUTUN', nama: 'Hafalan Matan Kitab', kategori: 'mutun', jenis_setoran: 'mutun', urutan: 4, aktif: true },
-  { id: 5, kode: 'MUFRADAT', nama: 'Setoran Mufradat', kategori: 'bahasa_arab', jenis_setoran: 'mufradat', urutan: 5, aktif: true },
-  { id: 6, kode: 'NAHWU', nama: 'Nahwu', kategori: 'bahasa_arab', jenis_setoran: 'bahasa_arab', urutan: 10, aktif: true },
-  { id: 7, kode: 'SHARAF', nama: 'Sharaf', kategori: 'bahasa_arab', jenis_setoran: 'bahasa_arab', urutan: 11, aktif: true },
-  { id: 8, kode: 'HIWAR', nama: 'Hiwar (Percakapan)', kategori: 'bahasa_arab', jenis_setoran: 'bahasa_arab', urutan: 12, aktif: true },
-  { id: 9, kode: 'INSYA', nama: "Insya' (Mengarang)", kategori: 'bahasa_arab', jenis_setoran: 'bahasa_arab', urutan: 13, aktif: true },
-  { id: 10, kode: 'BALAGHAH', nama: 'Balaghah', kategori: 'bahasa_arab', jenis_setoran: 'bahasa_arab', urutan: 14, aktif: true },
-  { id: 11, kode: 'IMLAK', nama: 'Imlak (Dikte)', kategori: 'bahasa_arab', jenis_setoran: 'bahasa_arab', urutan: 15, aktif: true },
-  { id: 12, kode: 'MUHADATSAH', nama: 'Muhadatsah', kategori: 'bahasa_arab', jenis_setoran: 'bahasa_arab', urutan: 16, aktif: true },
+  { id: 1, kode: 'TAHFIDZ', nama: "Tahfidz Al-Qur'an", kategori: 'quran', jenis_setoran: 'ziyadah', mode_input: 'quran', urutan: 1, aktif: true },
+  { id: 2, kode: 'ZIYADAH', nama: 'Ziyadah (Hafalan Baru)', kategori: 'quran', jenis_setoran: 'ziyadah', mode_input: 'quran', urutan: 2, aktif: true },
+  { id: 3, kode: 'MURAJAAH', nama: 'Murajaah (Ulangan)', kategori: 'quran', jenis_setoran: 'murajaah', mode_input: 'quran', urutan: 3, aktif: true },
+  { id: 4, kode: 'MUTUN', nama: 'Hafalan Matan Kitab', kategori: 'mutun', jenis_setoran: 'mutun', mode_input: 'jumlah', urutan: 4, aktif: true },
+  { id: 5, kode: 'MUFRADAT', nama: 'Setoran Mufradat', kategori: 'bahasa_arab', jenis_setoran: 'mufradat', mode_input: 'jumlah', urutan: 5, aktif: true },
+  { id: 6, kode: 'NAHWU', nama: 'Nahwu', kategori: 'bahasa_arab', jenis_setoran: 'bahasa_arab', mode_input: 'kuis', urutan: 10, aktif: true },
+  { id: 7, kode: 'SHARAF', nama: 'Sharaf', kategori: 'bahasa_arab', jenis_setoran: 'bahasa_arab', mode_input: 'jumlah', urutan: 11, aktif: true },
+  { id: 8, kode: 'HIWAR', nama: 'Hiwar (Percakapan)', kategori: 'bahasa_arab', jenis_setoran: 'bahasa_arab', mode_input: 'jumlah', urutan: 12, aktif: true },
+  { id: 9, kode: 'INSYA', nama: "Insya' (Mengarang)", kategori: 'bahasa_arab', jenis_setoran: 'bahasa_arab', mode_input: 'jumlah', urutan: 13, aktif: true },
+  { id: 10, kode: 'BALAGHAH', nama: 'Balaghah', kategori: 'bahasa_arab', jenis_setoran: 'bahasa_arab', mode_input: 'jumlah', urutan: 14, aktif: true },
+  { id: 11, kode: 'IMLAK', nama: 'Imlak (Dikte)', kategori: 'bahasa_arab', jenis_setoran: 'bahasa_arab', mode_input: 'jumlah', urutan: 15, aktif: true },
+  { id: 12, kode: 'MUHADATSAH', nama: 'Muhadatsah', kategori: 'bahasa_arab', jenis_setoran: 'bahasa_arab', mode_input: 'jumlah', urutan: 16, aktif: true },
+]
+
+export const DEFAULT_KITAB_BAB: KitabBab[] = [
+  { id: 1, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 1, judul_bab: 'Pembagian Fi\'il: Shahih Akhir & Mu\'tal Akhir (تقسيم الفعل إلى صحيح الآخر ومعتل الآخر)', halaman: 90, urutan: 1, aktif: true },
+  { id: 2, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 2, judul_bab: 'Mabni dan Mu\'rab (المبني والمعرب)', halaman: 94, urutan: 2, aktif: true },
+  { id: 3, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 3, judul_bab: 'Macam-macam Bina\' (أنواع البناء)', halaman: 97, urutan: 3, aktif: true },
+  { id: 4, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 4, judul_bab: 'Macam-macam I\'rab (أنواع الإعراب)', halaman: 100, urutan: 4, aktif: true },
+  { id: 5, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 5, judul_bab: 'Keadaan Mabni Fi\'il Madhi (أحوال بناء الفعل الماضي)', halaman: 105, urutan: 5, aktif: true },
+  { id: 6, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 6, judul_bab: 'Keadaan Mabni Fi\'il Amr (أحوال بناء الأمر)', halaman: 109, urutan: 6, aktif: true },
+  { id: 7, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 7, judul_bab: 'Keadaan Mabni Fi\'il Mudhari\' (أحوال بناء المضارع)', halaman: 114, urutan: 7, aktif: true },
+  { id: 8, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 8, judul_bab: 'I\'rab Mahalli (الإعراب المحلي)', halaman: 120, urutan: 8, aktif: true },
+  { id: 9, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 9, judul_bab: 'Fi\'il Mudhari\' Mu\'tal Akhir & I\'rabnya (الفعل المضارع المعتل الآخر)', halaman: 123, urutan: 9, aktif: true },
+  { id: 10, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 10, judul_bab: 'Isim Mu\'tal Akhir: Maqshur & Manqush (الاسم المعتل الآخر: المقصور والمنقوص)', halaman: 128, urutan: 10, aktif: true },
+  { id: 11, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 11, judul_bab: 'Nashb Mudhari\' setelah An Mudhmarah (نصب المضارع بعد أن المضمرة)', halaman: 135, urutan: 11, aktif: true },
+  { id: 12, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 12, judul_bab: 'Jawazim Fi\'il Mudhari\' (جوازم الفعل المضارع)', halaman: 146, urutan: 12, aktif: true },
+  { id: 13, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 13, judul_bab: 'Al-Af\'al Al-Khamsah & I\'rabnya (الأفعال الخمسة)', halaman: 154, urutan: 13, aktif: true },
+  { id: 14, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 14, judul_bab: 'Pembagian Isim: Mufrad, Mutsanna, Jama\' (تقسيم الاسم إلى مفرد ومثنى وجمع)', halaman: 159, urutan: 14, aktif: true },
+  { id: 15, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 15, judul_bab: 'Pembagian Jama\' (تقسيم الجمع)', halaman: 162, urutan: 15, aktif: true },
+  { id: 16, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 16, judul_bab: 'I\'rab Mutsanna (إعراب المثنى)', halaman: 165, urutan: 16, aktif: true },
+  { id: 17, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 17, judul_bab: 'I\'rab Jama\' Mudzakkar Salim (إعراب جمع المذكر السالم)', halaman: 169, urutan: 17, aktif: true },
+  { id: 18, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 18, judul_bab: 'I\'rab Jama\' Muannats Salim (إعراب جمع المؤنث السالم)', halaman: 173, urutan: 18, aktif: true },
+  { id: 19, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 19, judul_bab: 'Mudhaf dan Mudhaf Ilaih (المضاف والمضاف إليه)', halaman: 177, urutan: 19, aktif: true },
+  { id: 20, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 20, judul_bab: 'Al-Asma\' Al-Khamsah & I\'rabnya (الأسماء الخمسة)', halaman: 182, urutan: 20, aktif: true },
+  { id: 21, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 21, judul_bab: 'Tanda Ta\'nits pada Fi\'il (علامات التأنيث في الأفعال)', halaman: 186, urutan: 21, aktif: true },
+  { id: 22, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 22, judul_bab: 'Tanda Ta\'nits pada Isim (علامات التأنيث في الأسماء)', halaman: 189, urutan: 22, aktif: true },
+  { id: 23, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 23, judul_bab: 'Nakirah dan Ma\'rifah (النكرة والمعرفة)', halaman: 192, urutan: 23, aktif: true },
+  { id: 24, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 24, judul_bab: 'Isim \'Alam (العلم)', halaman: 194, urutan: 24, aktif: true },
+  { id: 25, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 25, judul_bab: 'Ma\'rifah dengan Alif Lam (المعرف بالألف واللام)', halaman: 197, urutan: 25, aktif: true },
+  { id: 26, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 26, judul_bab: 'Dhamir: Munfashil, Muttashil, Mustatir (الضمير)', halaman: 200, urutan: 26, aktif: true },
+  { id: 27, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 27, judul_bab: 'Isim Maushul (الاسم الموصول)', halaman: 215, urutan: 27, aktif: true },
+  { id: 28, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 28, judul_bab: 'Isim Isyarah (اسم الإشارة)', halaman: 220, urutan: 28, aktif: true },
+  { id: 29, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 29, judul_bab: 'Naib Fa\'il (نائب الفاعل)', halaman: 224, urutan: 29, aktif: true },
+  { id: 30, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 30, judul_bab: 'Af\'al Al-Istimrar An-Nasikhah & Ma Dama (أفعال الاستمرار الناسخة وما دام)', halaman: 228, urutan: 30, aktif: true },
+  { id: 31, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 31, judul_bab: 'Maf\'ul Muthlaq (المفعول المطلق)', halaman: 233, urutan: 31, aktif: true },
+  { id: 32, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 32, judul_bab: 'Maf\'ul Li Ajlih (المفعول لأجله)', halaman: 238, urutan: 32, aktif: true },
+  { id: 33, subject_id: 6, kitab: 'Nahwu Wadhih', jilid: '2', nomor_bab: 33, judul_bab: 'Zharf Zaman dan Zharf Makan (ظرف الزمان وظرف المكان)', halaman: 243, urutan: 33, aktif: true },
 ]
 
 export const DEFAULT_MUTABAAH_ACTIVITIES: MutabaahActivity[] = [
