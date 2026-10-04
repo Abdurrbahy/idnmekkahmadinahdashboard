@@ -48,7 +48,7 @@ import type {
   Submission,
   MutabaahDailyScore,
 } from '@/types/database'
-import { ALL_SURAHS } from '@/data/staticData'
+import { formatQuranDetail } from '@/data/staticData'
 
 export const WeeklyReportPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -640,19 +640,29 @@ export const WeeklyReportPage: React.FC = () => {
                                         const isKuis =
                                           sub.subject?.mode_input === 'kuis' || Boolean(quizDetail)
 
-                                        let detailText = `${sub.capaian} ${sub.satuan}`
+                                        let detailElement: React.ReactNode = `${sub.capaian} ${sub.satuan}`
                                         let statusLabel = sub.status.replace('_', ' ')
                                         let statusBadgeClass =
                                           'bg-neutral-100 text-neutral-700 border-neutral-200'
 
                                         if (qDetail) {
-                                          const sAwal =
-                                            ALL_SURAHS.find((s) => s.nomor === qDetail.surah_awal)
-                                              ?.nama_latin || ''
-                                          const sAkhir =
-                                            ALL_SURAHS.find((s) => s.nomor === qDetail.surah_akhir)
-                                              ?.nama_latin || ''
-                                          detailText = `${sAwal} ${qDetail.ayat_awal}–${sAkhir} ${qDetail.ayat_akhir} (${sub.capaian} ayat)`
+                                          const qInfo = formatQuranDetail(
+                                            qDetail.surah_awal,
+                                            qDetail.ayat_awal,
+                                            qDetail.surah_akhir,
+                                            qDetail.ayat_akhir
+                                          )
+                                          detailElement = (
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-purple-50 text-purple-900 border border-purple-200 print:bg-neutral-100 print:text-neutral-900 print:border-neutral-300">
+                                                {qInfo.juzLabel}
+                                              </span>
+                                              <span>
+                                                {qInfo.surahRangeText}{' '}
+                                                <span className="font-bold text-neutral-600">({sub.capaian} ayat)</span>
+                                              </span>
+                                            </div>
+                                          )
                                           if (sub.status === 'lancar') {
                                             statusLabel = 'Lancar'
                                             statusBadgeClass =
@@ -671,7 +681,7 @@ export const WeeklyReportPage: React.FC = () => {
                                           const babName = b
                                             ? `${b.kitab} — Bab ${b.nomor_bab}: ${b.judul_bab}`
                                             : quizDetail.kitab_manual || 'Kuis Harian'
-                                          detailText = `${babName} (${quizDetail.soal_benar}/${quizDetail.soal_total} soal benar)`
+                                          detailElement = `${babName} (${quizDetail.soal_benar}/${quizDetail.soal_total} soal benar)`
                                           if (sub.status === 'lancar') {
                                             statusLabel = 'Tuntas'
                                             statusBadgeClass =
@@ -708,7 +718,7 @@ export const WeeklyReportPage: React.FC = () => {
                                             </td>
                                             <td className="py-1.5 px-2.5 border-r border-neutral-200 align-top">
                                               <div className="font-medium text-neutral-900">
-                                                {detailText}
+                                                {detailElement}
                                               </div>
                                               {sub.catatan && (
                                                 <div className="text-[10px] text-neutral-600 italic mt-0.5">

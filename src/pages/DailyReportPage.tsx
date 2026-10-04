@@ -38,7 +38,7 @@ import type {
   MutabaahRecord,
   Activity,
 } from '@/types/database'
-import { ALL_SURAHS } from '@/data/staticData'
+import { formatQuranDetail } from '@/data/staticData'
 
 export const DailyReportPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -587,16 +587,25 @@ export const DailyReportPage: React.FC = () => {
                       const quizDetail = sub.quiz_details?.[0]
                       const isKuis = sub.subject?.mode_input === 'kuis' || Boolean(quizDetail)
 
-                      let materiText = `${sub.capaian} ${sub.satuan}`
+                      let materiElement: React.ReactNode = `${sub.capaian} ${sub.satuan}`
                       let capaianText = `${sub.capaian} ${sub.satuan}`
                       let statusText = sub.status.replace('_', ' ')
 
                       if (qDetail) {
-                        const sAwal =
-                          ALL_SURAHS.find((s) => s.nomor === qDetail.surah_awal)?.nama_latin || ''
-                        const sAkhir =
-                          ALL_SURAHS.find((s) => s.nomor === qDetail.surah_akhir)?.nama_latin || ''
-                        materiText = `${sAwal} (${qDetail.ayat_awal}) s/d ${sAkhir} (${qDetail.ayat_akhir})`
+                        const qInfo = formatQuranDetail(
+                          qDetail.surah_awal,
+                          qDetail.ayat_awal,
+                          qDetail.surah_akhir,
+                          qDetail.ayat_akhir
+                        )
+                        materiElement = (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-purple-50 text-purple-900 border border-purple-200 print:bg-neutral-100 print:text-neutral-900 print:border-neutral-300">
+                              {qInfo.juzLabel}
+                            </span>
+                            <span className="font-medium text-neutral-900">{qInfo.surahRangeText}</span>
+                          </div>
+                        )
                         capaianText = `${sub.capaian} ayat`
                         statusText =
                           sub.status === 'lancar'
@@ -606,9 +615,10 @@ export const DailyReportPage: React.FC = () => {
                             : 'Mengulang'
                       } else if (isKuis && quizDetail) {
                         const b = quizDetail.kitab_bab
-                        materiText = b
+                        const mText = b
                           ? `${b.kitab} ${b.jilid ? 'jilid ' + b.jilid + ' ' : ''}— Bab ${b.nomor_bab}: ${b.judul_bab}`
                           : quizDetail.kitab_manual || 'Kuis Harian'
+                        materiElement = <span>{mText}</span>
                         capaianText = `${quizDetail.soal_benar}/${quizDetail.soal_total} soal`
                         statusText =
                           sub.status === 'lancar'
@@ -634,7 +644,7 @@ export const DailyReportPage: React.FC = () => {
                             {sub.subject?.nama || sub.jenis}
                           </td>
                           <td className="py-2 px-2 border-r border-neutral-200 font-normal">
-                            {materiText}
+                            {materiElement}
                           </td>
                           <td className="py-2 px-2 text-center border-r border-neutral-200 font-bold">
                             {capaianText}

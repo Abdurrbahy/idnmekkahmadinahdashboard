@@ -17,7 +17,7 @@ import { Badge } from '../ui/badge'
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
 import type { Student, Subject, Submission, KitabBab } from '@/types/database'
-import { ALL_SURAHS, calculateQuranAyatCount } from '@/data/staticData'
+import { ALL_SURAHS, calculateQuranAyatCount, formatQuranDetail } from '@/data/staticData'
 import {
   insertSubmission,
   updateSubmission,
@@ -964,28 +964,41 @@ export const QuranSubmissionSection: React.FC<QuranSubmissionSectionProps> = ({
                               </div>
                             ) : quranDetail ? (
                               /* QURAN MODE DISPLAY */
-                              <div className="text-neutral-700 font-medium flex items-center gap-1.5">
-                                <span className="bg-neutral-200/70 text-neutral-800 px-1.5 py-0.5 rounded font-mono text-[11px]">
-                                  {ALL_SURAHS.find((s) => s.nomor === quranDetail.surah_awal)?.nama_latin} :{' '}
-                                  {quranDetail.ayat_awal}
-                                </span>
-                                <span className="text-neutral-400">s/d</span>
-                                <span className="bg-neutral-200/70 text-neutral-800 px-1.5 py-0.5 rounded font-mono text-[11px]">
-                                  {ALL_SURAHS.find((s) => s.nomor === quranDetail.surah_akhir)?.nama_latin} :{' '}
-                                  {quranDetail.ayat_akhir}
-                                </span>
-                                <span className="font-bold text-neutral-900 ml-1">
-                                  ({sub.capaian} Ayat)
-                                </span>
-                                {sub.nilai !== null && sub.nilai !== undefined && (
-                                  <>
-                                    <span className="text-neutral-300">·</span>
-                                    <span className="font-semibold text-neutral-800">
-                                      Nilai: {sub.nilai}
+                              (() => {
+                                const qInfo = formatQuranDetail(
+                                  quranDetail.surah_awal,
+                                  quranDetail.ayat_awal,
+                                  quranDetail.surah_akhir,
+                                  quranDetail.ayat_akhir
+                                )
+                                return (
+                                  <div className="text-neutral-700 font-medium flex items-center gap-1.5 flex-wrap">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-900 border border-purple-200">
+                                      {qInfo.juzLabel}
                                     </span>
-                                  </>
-                                )}
-                              </div>
+                                    <span className="bg-neutral-200/70 text-neutral-800 px-1.5 py-0.5 rounded font-mono text-[11px]">
+                                      {ALL_SURAHS.find((s) => s.nomor === quranDetail.surah_awal)?.nama_latin} :{' '}
+                                      {quranDetail.ayat_awal}
+                                    </span>
+                                    <span className="text-neutral-400">s/d</span>
+                                    <span className="bg-neutral-200/70 text-neutral-800 px-1.5 py-0.5 rounded font-mono text-[11px]">
+                                      {ALL_SURAHS.find((s) => s.nomor === quranDetail.surah_akhir)?.nama_latin} :{' '}
+                                      {quranDetail.ayat_akhir}
+                                    </span>
+                                    <span className="font-bold text-neutral-900 ml-1">
+                                      ({sub.capaian} Ayat)
+                                    </span>
+                                    {sub.nilai !== null && sub.nilai !== undefined && (
+                                      <>
+                                        <span className="text-neutral-300">·</span>
+                                        <span className="font-semibold text-neutral-800">
+                                          Nilai: {sub.nilai}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                )
+                              })()
                             ) : (
                               /* JUMLAH MODE DISPLAY */
                               <div className="text-neutral-700 font-semibold flex items-center gap-2">
