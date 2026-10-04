@@ -172,6 +172,16 @@ export const DailyBatchReportPage: React.FC = () => {
       .reduce((acc, curr) => acc + Number(curr.capaian || 0), 0)
     const totalAyat = ziyadahAyat + murajaahAyat
 
+    // Extract unique Juz list
+    const quranSubs = studentSubs.filter((s) => s.quran_details && s.quran_details.length > 0)
+    const distinctJuzSet = new Set<string>()
+    quranSubs.forEach((s) => {
+      const qd = s.quran_details![0]
+      const qInfo = formatQuranDetail(qd.surah_awal, qd.ayat_awal, qd.surah_akhir, qd.ayat_akhir)
+      distinctJuzSet.add(qInfo.juzLabel)
+    })
+    const distinctJuzList = Array.from(distinctJuzSet)
+
     // Mutabaah stats
     const studentMuts = rangeMutabaah.filter((m) => m.student_id === sId)
     const distinctMutDays = new Set(studentMuts.map((m) => m.tanggal)).size
@@ -256,6 +266,7 @@ export const DailyBatchReportPage: React.FC = () => {
       murajaahAyat,
       totalAyat,
       distinctMutDays,
+      distinctJuzList,
       avgMutScore,
       coreActsCount: coreActs.length,
       avgCompletedAmalan,
@@ -496,45 +507,174 @@ export const DailyBatchReportPage: React.FC = () => {
                 </div>
 
                 {/* Weekly Summary KPIs (Accurate calculation) */}
+                {/* Weekly Summary KPIs (Accurate calculation) */}
                 {studentStats && (
-                  <div className="mt-6 space-y-2">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-700">
-                      Ringkasan Capaian Sepekan
-                    </h3>
-                    <div className="grid grid-cols-3 gap-3 text-center border border-neutral-200 rounded-xl p-4 bg-white">
-                      <div>
-                        <div className="text-2xl font-bold text-neutral-900">
-                          {studentStats.kehadiranPct}%
+                  <div className="mt-6 space-y-4">
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-700">
+                        Ringkasan Capaian Sepekan
+                      </h3>
+                      <div className="grid grid-cols-3 gap-3 text-center border border-neutral-200 rounded-xl p-4 bg-white">
+                        <div>
+                          <div className="text-2xl font-bold text-neutral-900">
+                            {studentStats.kehadiranPct}%
+                          </div>
+                          <div className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mt-0.5">
+                            Kehadiran Sesi
+                          </div>
+                          <div className="text-[10px] text-neutral-500 font-medium mt-0.5">
+                            {studentStats.distinctActiveDaysWithLogs}/5 hari aktif
+                          </div>
                         </div>
-                        <div className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mt-0.5">
-                          Kehadiran Sesi
+                        <div className="border-l border-neutral-200">
+                          <div className="text-2xl font-bold text-neutral-900">
+                            {studentStats.totalAyat}
+                          </div>
+                          <div className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mt-0.5">
+                            Total Ayat Disetor
+                          </div>
+                          <div className="text-[10px] text-neutral-500 font-medium mt-0.5 flex items-center justify-center gap-1 flex-wrap">
+                            {studentStats.distinctJuzList.length > 0 ? (
+                              <>
+                                <span className="font-semibold text-purple-900">
+                                  {studentStats.distinctJuzList.join(', ')}
+                                </span>
+                                <span>({studentStats.submissionCount}x setoran)</span>
+                              </>
+                            ) : (
+                              <span>{studentStats.submissionCount} kali setoran</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-[10px] text-neutral-500 font-medium mt-0.5">
-                          {studentStats.distinctActiveDaysWithLogs}/5 hari aktif
+                        <div className="border-l border-neutral-200">
+                          <div className="text-2xl font-bold text-neutral-900">
+                            {studentStats.avgMutScore}%
+                          </div>
+                          <div className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mt-0.5">
+                            Rata Mutabaah
+                          </div>
+                          <div className="text-[10px] text-neutral-500 font-medium mt-0.5">
+                            {studentStats.distinctMutDays}/7 hari
+                          </div>
                         </div>
                       </div>
-                      <div className="border-l border-neutral-200">
-                        <div className="text-2xl font-bold text-neutral-900">
-                          {studentStats.totalAyat}
-                        </div>
-                        <div className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mt-0.5">
-                          Total Ayat Disetor
-                        </div>
-                        <div className="text-[10px] text-neutral-500 font-medium mt-0.5">
-                          {studentStats.submissionCount} kali setoran
-                        </div>
+                    </div>
+
+                    {/* Rincian Setoran Qur'an & Muroja'ah Sepekan */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-700">
+                          Rincian Setoran Qur'an & Muroja'ah Pekan Ini
+                        </h3>
+                        {studentStats.distinctJuzList.length > 0 && (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {studentStats.distinctJuzList.map((juz) => (
+                              <span
+                                key={juz}
+                                className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-900 border border-purple-200 print:bg-neutral-100 print:text-neutral-900 print:border-neutral-300"
+                              >
+                                {juz}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="border-l border-neutral-200">
-                        <div className="text-2xl font-bold text-neutral-900">
-                          {studentStats.avgMutScore}%
+
+                      {studentStats.studentSubs.length === 0 ? (
+                        <div className="p-4 text-center border border-neutral-200 rounded-xl bg-neutral-50 text-xs text-neutral-400">
+                          Belum ada setoran tercatat pada pekan ini
                         </div>
-                        <div className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mt-0.5">
-                          Rata Mutabaah
+                      ) : (
+                        <div className="border border-neutral-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                          <table className="w-full text-left text-xs border-collapse">
+                            <thead>
+                              <tr className="bg-neutral-100 border-b border-neutral-200 text-[10px] font-bold text-neutral-700">
+                                <th className="py-2 px-3 border-r border-neutral-200 w-28">Hari & Tanggal</th>
+                                <th className="py-2 px-3 border-r border-neutral-200 w-24">Mapel</th>
+                                <th className="py-2 px-3 border-r border-neutral-200">Juz & Rincian Surat / Materi</th>
+                                <th className="py-2 px-2 text-center border-r border-neutral-200 w-20">Capaian</th>
+                                <th className="py-2 px-2 text-center border-r border-neutral-200 w-24">Status</th>
+                                <th className="py-2 px-2 text-center border-r border-neutral-200 w-12">Nilai</th>
+                                <th className="py-2 px-2 text-left">Catatan</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-neutral-200">
+                              {studentStats.studentSubs.map((sub, sIdx) => {
+                                const qDetail = sub.quran_details?.[0]
+                                const quizDetail = sub.quiz_details?.[0]
+                                const isKuis = sub.subject?.mode_input === 'kuis' || Boolean(quizDetail)
+
+                                let materiElement: React.ReactNode = `${sub.capaian} ${sub.satuan}`
+                                let capaianText = `${sub.capaian} ${sub.satuan}`
+                                let statusText = sub.status.replace('_', ' ')
+
+                                if (qDetail) {
+                                  const qInfo = formatQuranDetail(
+                                    qDetail.surah_awal,
+                                    qDetail.ayat_awal,
+                                    qDetail.surah_akhir,
+                                    qDetail.ayat_akhir
+                                  )
+                                  materiElement = (
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-purple-50 text-purple-900 border border-purple-200 print:bg-neutral-100 print:text-neutral-900 print:border-neutral-300">
+                                        {qInfo.juzLabel}
+                                      </span>
+                                      <span className="font-medium text-neutral-900">{qInfo.surahRangeText}</span>
+                                    </div>
+                                  )
+                                  capaianText = `${sub.capaian} ayat`
+                                  statusText =
+                                    sub.status === 'lancar'
+                                      ? 'Lancar'
+                                      : sub.status === 'kurang_lancar'
+                                      ? 'Kurang Lancar'
+                                      : 'Mengulang'
+                                } else if (isKuis && quizDetail) {
+                                  const b = quizDetail.kitab_bab
+                                  const mText = b
+                                    ? `${b.kitab} ${b.jilid ? 'jilid ' + b.jilid + ' ' : ''}— Bab ${b.nomor_bab}: ${b.judul_bab}`
+                                    : quizDetail.kitab_manual || 'Kuis Harian'
+                                  materiElement = <span>{mText}</span>
+                                  capaianText = `${quizDetail.soal_benar}/${quizDetail.soal_total} soal`
+                                  statusText =
+                                    sub.status === 'lancar'
+                                      ? 'Tuntas'
+                                      : sub.status === 'kurang_lancar'
+                                      ? 'Perlu Perbaikan'
+                                      : 'Remedial'
+                                }
+
+                                return (
+                                  <tr key={sub.id || sIdx} className="hover:bg-neutral-50/50">
+                                    <td className="py-1.5 px-3 border-r border-neutral-200 font-medium text-neutral-600 text-[11px]">
+                                      {formatDateShortRiyadh(sub.tanggal)}
+                                    </td>
+                                    <td className="py-1.5 px-3 border-r border-neutral-200 font-semibold text-neutral-900">
+                                      {sub.subject?.nama || sub.jenis}
+                                    </td>
+                                    <td className="py-1.5 px-3 border-r border-neutral-200 font-normal">
+                                      {materiElement}
+                                    </td>
+                                    <td className="py-1.5 px-2 text-center border-r border-neutral-200 font-bold text-[11px]">
+                                      {capaianText}
+                                    </td>
+                                    <td className="py-1.5 px-2 text-center border-r border-neutral-200 font-semibold capitalize text-[11px]">
+                                      {statusText}
+                                    </td>
+                                    <td className="py-1.5 px-2 text-center border-r border-neutral-200 font-bold font-mono text-[11px]">
+                                      {sub.nilai !== null && sub.nilai !== undefined ? sub.nilai : '—'}
+                                    </td>
+                                    <td className="py-1.5 px-2 text-neutral-600 italic text-[10.5px]">
+                                      {sub.catatan || '—'}
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
                         </div>
-                        <div className="text-[10px] text-neutral-500 font-medium mt-0.5">
-                          {studentStats.distinctMutDays}/7 hari
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 )}
