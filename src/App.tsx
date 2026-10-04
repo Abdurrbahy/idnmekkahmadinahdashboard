@@ -6,6 +6,7 @@ import { PrintLayout } from './layouts/PrintLayout'
 import { SlideLayout } from './layouts/SlideLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { SignInPage } from './pages/SignInPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { DailyInputPage } from './pages/DailyInputPage'
 import { DailyReportPage } from './pages/DailyReportPage'
 import { WeeklyReportPage } from './pages/WeeklyReportPage'
@@ -21,6 +22,7 @@ export function App() {
           {/* Public Auth Routes */}
           <Route element={<AuthLayout />}>
             <Route path="/signin" element={<SignInPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
           </Route>
 
           {/* Protected Dashboard & Form Routes */}
