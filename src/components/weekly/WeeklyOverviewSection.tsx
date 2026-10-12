@@ -6,14 +6,10 @@ import {
   Activity as ActivityIcon,
   BarChart3,
   Award,
-  Printer,
-  FileDown,
   GraduationCap,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card'
 import { Badge } from '../ui/badge'
-import { Button } from '../ui/button'
-import { useAuth } from '@/context/AuthContext'
 import type {
   Student,
   WeeklyAttendance,
@@ -60,10 +56,6 @@ export const WeeklyOverviewSection: React.FC<WeeklyOverviewSectionProps> = ({
   rawAttendanceLogs = [],
   rawSubmissions = [],
 }) => {
-  const { profile } = useAuth()
-  const userRole = profile?.role || 'walsan'
-  const isStaff = userRole === 'admin' || userRole === 'atasan'
-
   const activeDaysInWeek = useMemo(() => getActiveDaysInWeek(pekanMulaiStr), [pekanMulaiStr])
   const pekanInfo = useMemo(() => nomorPekanBulan(pekanMulaiStr), [pekanMulaiStr])
 
@@ -113,6 +105,47 @@ export const WeeklyOverviewSection: React.FC<WeeklyOverviewSectionProps> = ({
 
   const totalActivitiesCount = weeklyActivities.length
 
+  // 1.5 Calculate other submissions (Setoran Lain: bukan ziyadah/murajaah)
+  const otherSubmissionsData = useMemo(() => {
+    const isQuran = (s: Submission) =>
+      s.jenis === 'ziyadah' ||
+      s.jenis === 'murajaah' ||
+      s.satuan === 'ayat' ||
+      Boolean(s.quran_details && s.quran_details.length > 0)
+
+    const otherSubs = rawSubmissions.filter((s) => !isQuran(s))
+    const count = otherSubs.length
+
+    // Breakdown per jenis
+    const mufradatKata = otherSubs
+      .filter((s) => s.jenis === 'mufradat' || s.subject?.kode === 'MUFRADAT' || s.satuan === 'kata')
+      .reduce((acc, curr) => acc + (Number(curr.capaian) || 0), 0)
+
+    const nahwuKuis = otherSubs
+      .filter(
+        (s) =>
+          s.subject?.mode_input === 'kuis' ||
+          Boolean(s.quiz_details?.length) ||
+          s.subject?.kode === 'NAHWU'
+      ).length
+
+    const mutunBait = otherSubs
+      .filter((s) => s.jenis === 'mutun' || s.subject?.kode === 'MUTUN' || s.satuan === 'bait')
+      .reduce((acc, curr) => acc + (Number(curr.capaian) || 0), 0)
+
+    const parts: string[] = []
+    if (mufradatKata > 0) parts.push(`Mufradat ${mufradatKata} kata`)
+    if (nahwuKuis > 0) parts.push(`Nahwu ${nahwuKuis} kuis`)
+    if (mutunBait > 0) parts.push(`Mutun ${mutunBait} bait`)
+
+    const breakdownText = parts.length > 0 ? parts.join(' · ') : 'Belum ada setoran lain'
+
+    return {
+      count,
+      breakdownText,
+    }
+  }, [rawSubmissions])
+
   // 2. Prepare 5 active days chart data (Ahad -> Kamis)
   const chartData = useMemo(() => {
     const totalPossibleSessionPerDay = Math.max(1, students.length * 4)
@@ -148,79 +181,19 @@ export const WeeklyOverviewSection: React.FC<WeeklyOverviewSectionProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Action Bar: Unduh Laporan Harian Sepekan (Batch) & Laporan Pekanan */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-white p-3.5 sm:p-4 shadow-2xs">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold text-neutral-900">
-              {pekanInfo.labelPekan}
-            </h2>
-            <Badge variant="outline" className="border-neutral-200 text-neutral-600 bg-neutral-50 text-[10px]">
-              5 Hari Aktif (Ahad – Kamis)
-            </Badge>
-          </div>
-          <p className="text-xs text-neutral-500 mt-0.5">
-            Periode: {formatPekanDisplay(pekanMulaiStr)} (Jumat & Sabtu Libur KBM)
-          </p>
+      {/* Top Period Card */}
+      <div className="rounded-xl border border-neutral-200 bg-white p-3.5 sm:p-4 shadow-2xs">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-bold text-neutral-900">
+            {pekanInfo.labelPekan}
+          </h2>
+          <Badge variant="outline" className="border-neutral-200 text-neutral-600 bg-neutral-50 text-[10px]">
+            5 Hari Aktif (Ahad – Kamis)
+          </Badge>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Walsan single click or Staff student dropdown */}
-          {!isStaff && students.length > 0 ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                window.open(
-                  `/report/daily-batch?pekan=${pekanMulaiStr}&santri=${students[0].id}`,
-                  '_blank'
-                )
-              }
-              className="text-xs font-semibold gap-1.5 border-neutral-200 hover:bg-neutral-50 text-neutral-800"
-            >
-              <FileDown className="h-3.5 w-3.5 text-neutral-600" />
-              <span>Unduh Laporan Harian (5 Hari)</span>
-            </Button>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold text-neutral-600 hidden sm:inline">
-                Unduh Harian Sepekan:
-              </span>
-              <select
-                defaultValue=""
-                onChange={(e) => {
-                  if (e.target.value) {
-                    window.open(
-                      `/report/daily-batch?pekan=${pekanMulaiStr}&santri=${e.target.value}`,
-                      '_blank'
-                    )
-                    e.target.value = ''
-                  }
-                }}
-                className="h-8 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs font-semibold text-neutral-800 focus:outline-none hover:bg-neutral-50 cursor-pointer"
-              >
-                <option value="" disabled>
-                  Pilih Santri (5 Hari)...
-                </option>
-                {students.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.nama}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.open(`/report/weekly?pekan=${pekanMulaiStr}`, '_blank')}
-            className="text-xs font-semibold gap-1.5 border-neutral-200 hover:bg-neutral-50 text-neutral-800"
-          >
-            <Printer className="h-3.5 w-3.5 text-neutral-600" />
-            <span>Laporan Pekanan</span>
-          </Button>
-        </div>
+        <p className="text-xs text-neutral-500 mt-0.5">
+          Periode: {formatPekanDisplay(pekanMulaiStr)} · Jumat & Sabtu libur KBM
+        </p>
       </div>
 
       {/* 4 Top Weekly KPI Cards */}
@@ -302,23 +275,26 @@ export const WeeklyOverviewSection: React.FC<WeeklyOverviewSectionProps> = ({
           </CardContent>
         </Card>
 
-        {/* Card 4: Kegiatan */}
+        {/* Card 4: Setoran Lain */}
         <Card className="border-neutral-200 bg-white shadow-2xs">
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-neutral-500">Kegiatan Terlaksana</span>
+              <span className="text-xs font-semibold text-neutral-500">Setoran Lain</span>
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
                 <ActivityIcon className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-2xl font-bold tracking-tight text-neutral-900">
-                {totalActivitiesCount}
+                {otherSubmissionsData.count}
               </span>
-              <span className="text-xs font-medium text-neutral-500">Agenda</span>
+              <span className="text-xs font-medium text-neutral-500">Rekaman</span>
             </div>
-            <p className="mt-1 text-[11px] text-neutral-400">
-              Halaqah & Kegiatan Khusus
+            <p className="mt-1 text-[11px] text-neutral-500 font-medium truncate" title={otherSubmissionsData.breakdownText}>
+              {otherSubmissionsData.breakdownText}
+            </p>
+            <p className="mt-0.5 text-[10px] text-neutral-400">
+              Agenda kegiatan: {totalActivitiesCount}
             </p>
           </CardContent>
         </Card>
@@ -334,7 +310,7 @@ export const WeeklyOverviewSection: React.FC<WeeklyOverviewSectionProps> = ({
               <CardTitle className="text-sm font-bold">Tren Setoran Ayat Harian (Ahad — Kamis)</CardTitle>
             </div>
             <CardDescription className="text-xs">
-              Distribusi pencapaian Ziyadah vs Murajaah per hari • <span className="font-semibold text-neutral-600">Hari aktif program: Ahad – Kamis</span>
+              Distribusi pencapaian Ziyadah vs Murajaah per hari
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4 pt-6">
@@ -366,7 +342,7 @@ export const WeeklyOverviewSection: React.FC<WeeklyOverviewSectionProps> = ({
               <CardTitle className="text-sm font-bold">Tingkat Kehadiran Harian (%)</CardTitle>
             </div>
             <CardDescription className="text-xs">
-              Persentase 4 santri hadir di seluruh sesi • <span className="font-semibold text-neutral-600">Hari aktif program: Ahad – Kamis</span>
+              Persentase 4 santri hadir di seluruh sesi
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4 pt-6">

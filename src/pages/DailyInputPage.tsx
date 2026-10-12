@@ -246,6 +246,7 @@ export const DailyInputPage: React.FC = () => {
         isConfigured={isConfigured}
         onOpenConfig={() => setIsConfigOpen(true)}
         hasUnsavedChanges={hasAnyUnsavedChanges}
+        students={students}
       />
 
       <main className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 space-y-6">

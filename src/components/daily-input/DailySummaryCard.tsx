@@ -79,8 +79,40 @@ export const DailySummaryCard: React.FC<DailySummaryCardProps> = ({
     return act?.target_harian === null && r.status === 'done'
   }).length
 
-  // 4. Activities Count
+  // 4. Activities Count & Other Submissions
   const totalActivities = activities.length
+
+  const isQuran = (s: Submission) =>
+    s.jenis === 'ziyadah' ||
+    s.jenis === 'murajaah' ||
+    s.satuan === 'ayat' ||
+    Boolean(s.quran_details && s.quran_details.length > 0)
+
+  const otherSubs = submissions.filter((s) => !isQuran(s))
+  const otherCount = otherSubs.length
+
+  const mufradatKata = otherSubs
+    .filter((s) => s.jenis === 'mufradat' || s.subject?.kode === 'MUFRADAT' || s.satuan === 'kata')
+    .reduce((acc, curr) => acc + (Number(curr.capaian) || 0), 0)
+
+  const nahwuKuis = otherSubs
+    .filter(
+      (s) =>
+        s.subject?.mode_input === 'kuis' ||
+        Boolean(s.quiz_details?.length) ||
+        s.subject?.kode === 'NAHWU'
+    ).length
+
+  const mutunBait = otherSubs
+    .filter((s) => s.jenis === 'mutun' || s.subject?.kode === 'MUTUN' || s.satuan === 'bait')
+    .reduce((acc, curr) => acc + (Number(curr.capaian) || 0), 0)
+
+  const parts: string[] = []
+  if (mufradatKata > 0) parts.push(`Mufradat ${mufradatKata} kata`)
+  if (nahwuKuis > 0) parts.push(`Nahwu ${nahwuKuis} kuis`)
+  if (mutunBait > 0) parts.push(`Mutun ${mutunBait} bait`)
+
+  const breakdownText = parts.length > 0 ? parts.join(' · ') : 'Belum ada setoran lain'
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
@@ -173,23 +205,26 @@ export const DailySummaryCard: React.FC<DailySummaryCardProps> = ({
         </CardContent>
       </Card>
 
-      {/* 4. Kegiatan & Agenda */}
+      {/* 4. Setoran Lain */}
       <Card className="border-neutral-200 bg-white shadow-2xs">
         <CardContent className="p-4 sm:p-5">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-neutral-500">Agenda & Kegiatan</span>
+            <span className="text-xs font-semibold text-neutral-500">Setoran Lain</span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
               <ActivityIcon className="h-4 w-4" />
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold tracking-tight text-neutral-900">
-              {totalActivities}
+              {otherCount}
             </span>
-            <span className="text-xs text-neutral-500 font-medium">Kegiatan</span>
+            <span className="text-xs font-medium text-neutral-500">Rekaman</span>
           </div>
-          <p className="mt-1 text-[11px] text-neutral-400">
-            {totalActivities > 0 ? 'Terdokumentasi hari ini' : 'Belum ada agenda dicatat'}
+          <p className="mt-1 text-[11px] text-neutral-500 font-medium truncate" title={breakdownText}>
+            {breakdownText}
+          </p>
+          <p className="mt-0.5 text-[10px] text-neutral-400">
+            Agenda kegiatan: {totalActivities}
           </p>
         </CardContent>
       </Card>

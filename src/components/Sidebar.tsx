@@ -2,9 +2,6 @@ import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
-  CalendarDays,
-  Printer,
-  FileStack,
   FileText,
   Presentation,
   Coins,
@@ -56,15 +53,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }
 
   // Precise Active Check Helpers
-  const isDailyActive = location.pathname === '/' && !location.search.includes('mode=weekly')
-  const isWeeklyActive = location.pathname === '/' && location.search.includes('mode=weekly')
-  const isReportWeeklyActive = location.pathname === '/report/weekly'
-  const isDailyBatchActive = location.pathname === '/report/daily-batch'
+  const isDashboardActive = location.pathname === '/'
   const isWeeklyReportFormActive =
     location.pathname === '/weekly-report' && !location.search.includes('tab=finance')
   const isSlideActive = location.pathname === '/report/weekly-progress'
   const isBukuKasActive =
-    location.pathname === '/weekly-report' && location.search.includes('tab=finance')
+    location.pathname === '/kas' ||
+    (location.pathname === '/weekly-report' && location.search.includes('tab=finance'))
 
   return (
     <>
@@ -129,68 +124,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           {/* Nav Items */}
-          <nav className="p-3 space-y-6 flex-1">
-            {/* GROUP 1: RINGKASAN */}
-            <div className="space-y-1">
-              {!collapsed && (
-                <div className="px-2.5 pb-1.5 text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">
-                  Ringkasan
-                </div>
-              )}
-              <div className="space-y-0.5">
-                {/* 1. Input Harian */}
-                <NavItem
-                  to="/"
-                  active={isDailyActive}
-                  icon={LayoutDashboard}
-                  label="Input Harian"
-                  collapsed={collapsed}
-                  onClick={(e) => confirmNavigation('/', e)}
-                />
-
-                {/* 2. Rekap Pekanan */}
-                <NavItem
-                  to="/?mode=weekly"
-                  active={isWeeklyActive}
-                  icon={CalendarDays}
-                  label="Rekap Pekanan"
-                  collapsed={collapsed}
-                  onClick={(e) => confirmNavigation('/?mode=weekly', e)}
-                />
-              </div>
+          <nav className="p-3 space-y-4 flex-1">
+            {/* Item Dashboard: Di atas grup, tanpa judul grup */}
+            <div className="space-y-0.5">
+              <NavItem
+                to="/"
+                active={isDashboardActive}
+                icon={LayoutDashboard}
+                label="Dashboard"
+                collapsed={collapsed}
+                onClick={(e) => confirmNavigation('/', e)}
+              />
             </div>
 
-            {/* GROUP 2: LAPORAN */}
-            <div className="space-y-1">
-              {!collapsed && (
-                <div className="px-2.5 pb-1.5 text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">
-                  Laporan
-                </div>
-              )}
-              <div className="space-y-0.5">
-                {/* 1. Laporan Santri (Pekanan) */}
-                <NavItem
-                  to="/report/weekly"
-                  active={isReportWeeklyActive}
-                  icon={Printer}
-                  label="Laporan Santri"
-                  collapsed={collapsed}
-                  onClick={(e) => confirmNavigation('/report/weekly', e)}
-                />
-
-                {/* 2. Arsip Harian Sepekan (Daily Batch) */}
-                <NavItem
-                  to="/report/daily-batch"
-                  active={isDailyBatchActive}
-                  icon={FileStack}
-                  label="Arsip Harian Sepekan"
-                  collapsed={collapsed}
-                  onClick={(e) => confirmNavigation('/report/daily-batch', e)}
-                />
-              </div>
-            </div>
-
-            {/* GROUP 3: PROGRAM (Hanya untuk Admin & Atasan — Walsan TIDAK dirender) */}
+            {/* GROUP: PROGRAM (Hanya untuk Admin & Atasan — Walsan TIDAK dirender) */}
             {isStaff && (
               <div className="space-y-1">
                 {!collapsed && (

@@ -1,10 +1,9 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Menu,
   ChevronLeft,
   ChevronRight,
   Calendar,
-  Printer,
   AlertCircle,
 } from 'lucide-react'
 import { Button } from './ui/button'
@@ -19,8 +18,9 @@ import {
   formatPekanMobile,
   isHariAktif,
 } from '@/lib/dateUtils'
-import { nomorPekanBulan } from '@/lib/printUtils'
 import { fetchDailyCompleteness } from '@/lib/supabase'
+import { PrintMenu } from './PrintMenu'
+import type { Student } from '@/types/database'
 
 export type ViewMode = 'daily' | 'weekly'
 
@@ -34,6 +34,7 @@ interface HeaderProps {
   isConfigured?: boolean
   onOpenConfig?: () => void
   hasUnsavedChanges?: boolean
+  students?: Student[]
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -46,6 +47,7 @@ export const Header: React.FC<HeaderProps> = ({
   isConfigured = true,
   onOpenConfig,
   hasUnsavedChanges = false,
+  students = [],
 }) => {
   const currentPekanMulai = pekanMulai(selectedDate)
   const isCurrentToday = selectedDate === todayRiyadh()
@@ -120,16 +122,6 @@ export const Header: React.FC<HeaderProps> = ({
     onDateChange(newDate)
   }
 
-  const handleOpenReport = () => {
-    const reportUrl =
-      viewMode === 'daily'
-        ? `/report/daily?tanggal=${selectedDate}`
-        : `/report/weekly?pekan=${currentPekanMulai}`
-    window.open(reportUrl, '_blank')
-  }
-
-  const pekanInfo = useMemo(() => nomorPekanBulan(currentPekanMulai), [currentPekanMulai])
-
   return (
     <header className="sticky top-0 z-20 border-b border-neutral-200 bg-white/95 backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
@@ -160,7 +152,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* CENTER: Context Controls (Mode Toggle + Navigator + Week Number) */}
+          {/* CENTER: Context Controls (Mode Toggle + Navigator) */}
           <div className="flex items-center justify-center gap-2.5">
             {/* View Mode Toggle: [Harian] [Pekanan] */}
             {onViewModeChange && (
@@ -268,14 +260,9 @@ export const Header: React.FC<HeaderProps> = ({
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-
-            {/* Week Number Badge */}
-            <span className="px-2.5 py-1 rounded-lg bg-neutral-100 border border-neutral-200 text-[11px] font-bold text-neutral-700">
-              Pekan-{pekanInfo.nomor} {pekanInfo.namaBulan}
-            </span>
           </div>
 
-          {/* RIGHT: Print Report Button Only */}
+          {/* RIGHT: Print & Download Menu Popover */}
           <div className="flex items-center justify-end gap-2 shrink-0">
             {!isConfigured && onOpenConfig && (
               <button
@@ -289,16 +276,11 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpenReport}
-              className="text-xs font-semibold gap-1.5 border-neutral-200 hover:bg-neutral-50 text-neutral-800 shadow-2xs h-9 min-w-[44px]"
-              title="Buka Laporan Siap Cetak / PDF"
-            >
-              <Printer className="h-3.5 w-3.5 text-neutral-700" />
-              <span>Cetak Laporan</span>
-            </Button>
+            <PrintMenu
+              selectedDate={selectedDate}
+              students={students}
+              triggerMode="desktop"
+            />
           </div>
         </div>
 
@@ -334,15 +316,11 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={handleOpenReport}
-                className="flex items-center justify-center h-11 w-11 rounded-xl text-neutral-700 hover:bg-neutral-100 transition-colors focus:outline-none"
-                title="Cetak Laporan"
-                aria-label="Cetak Laporan"
-              >
-                <Printer className="h-5 w-5" />
-              </button>
+              <PrintMenu
+                selectedDate={selectedDate}
+                students={students}
+                triggerMode="mobile"
+              />
             </div>
           </div>
 
