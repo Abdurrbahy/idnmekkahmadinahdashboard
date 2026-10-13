@@ -129,19 +129,8 @@ export const Header: React.FC<HeaderProps> = ({
         {/* DESKTOP (lg and above): SINGLE CLEAN LINE */}
         {/* ========================================================================= */}
         <div className="hidden lg:flex items-center justify-between h-16 gap-4">
-          {/* LEFT: Menu Button + Page Title + Timezone */}
+          {/* LEFT: Page Title + Timezone */}
           <div className="flex items-center gap-3 shrink-0">
-            {onToggleSidebar && (
-              <button
-                type="button"
-                onClick={onToggleSidebar}
-                className="flex items-center justify-center h-10 w-10 rounded-xl text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 transition-colors focus:outline-none"
-                title="Buka / Tutup Sidebar"
-                aria-label="Toggle Sidebar"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-            )}
             <div>
               <h1 className="text-base font-bold tracking-tight text-neutral-900 leading-tight">
                 {pageTitle}

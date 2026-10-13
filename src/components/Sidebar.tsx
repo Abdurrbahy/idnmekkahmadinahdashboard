@@ -2,12 +2,12 @@ import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
+  LayoutGrid,
+  Printer,
   FileText,
   Presentation,
-  Coins,
   LogOut,
   ChevronLeft,
-  ChevronRight,
   Shield,
   Eye,
   HeartHandshake,
@@ -53,13 +53,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }
 
   // Precise Active Check Helpers
-  const isDashboardActive = location.pathname === '/'
-  const isWeeklyReportFormActive =
-    location.pathname === '/weekly-report' && !location.search.includes('tab=finance')
+  const isDashboardActive =
+    (location.pathname === '/' && location.search.includes('mode=weekly')) ||
+    location.pathname === '/dashboard'
+  const isInputHarianActive =
+    location.pathname === '/' && !location.search.includes('mode=weekly')
+  const isReportWeeklyActive = location.pathname === '/report/weekly'
+  const isWeeklyReportFormActive = location.pathname === '/weekly-report'
   const isSlideActive = location.pathname === '/report/weekly-progress'
-  const isBukuKasActive =
-    location.pathname === '/kas' ||
-    (location.pathname === '/weekly-report' && location.search.includes('tab=finance'))
 
   return (
     <>
@@ -85,97 +86,125 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* TOP SECTION: LOGO + NAVIGATION */}
         <div className="flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin">
           {/* Logo Header */}
-          <div className="flex items-center justify-between h-16 px-4 border-b border-neutral-100 shrink-0">
-            <Link
-              to="/"
-              onClick={(e) => confirmNavigation('/', e)}
-              className="flex items-center gap-2.5 overflow-hidden focus:outline-none"
-              title="IDN Boarding School — Mekkah & Madinah"
-            >
-              {collapsed ? (
-                <div className="w-8 h-8 flex items-center justify-center shrink-0">
-                  <img
-                    src={logoMark}
-                    alt="IDN Boarding School — Mekkah & Madinah"
-                    className="h-7 w-auto object-contain"
-                  />
-                </div>
-              ) : (
-                <div className="h-8 flex items-center shrink-0">
+          <div
+            className={`flex items-center h-16 border-b border-neutral-100 shrink-0 ${
+              collapsed ? 'justify-center px-0' : 'justify-between px-4'
+            }`}
+          >
+            {collapsed ? (
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                className="flex items-center justify-center h-10 w-10 rounded-xl hover:bg-neutral-100 transition-colors focus:outline-none"
+                title="Perluas Sidebar"
+                aria-label="Perluas Sidebar"
+              >
+                <img
+                  src={logoMark}
+                  alt="IDN Boarding School — Mekkah & Madinah"
+                  className="h-8 w-auto object-contain"
+                />
+              </button>
+            ) : (
+              <>
+                <Link
+                  to="/"
+                  onClick={(e) => confirmNavigation('/', e)}
+                  className="flex items-center gap-2.5 overflow-hidden focus:outline-none"
+                  title="IDN Boarding School — Mekkah & Madinah"
+                >
                   <img
                     src={logoFull}
                     alt="IDN Boarding School — Mekkah & Madinah"
                     className="h-8 w-auto max-w-[170px] object-contain"
                   />
-                </div>
-              )}
-            </Link>
+                </Link>
 
-            {/* Desktop Collapse Toggle Button (in header of sidebar) */}
-            <button
-              type="button"
-              onClick={onToggleCollapse}
-              className="hidden lg:flex items-center justify-center h-7 w-7 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors focus:outline-none"
-              title={collapsed ? 'Perluas Sidebar' : 'Lipat Sidebar'}
-              aria-label={collapsed ? 'Perluas Sidebar' : 'Lipat Sidebar'}
-            >
-              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </button>
+                {/* Desktop Collapse Toggle Button */}
+                <button
+                  type="button"
+                  onClick={onToggleCollapse}
+                  className="hidden lg:flex items-center justify-center h-7 w-7 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors focus:outline-none"
+                  title="Lipat Sidebar"
+                  aria-label="Lipat Sidebar"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+              </>
+            )}
           </div>
 
           {/* Nav Items */}
           <nav className="p-3 space-y-4 flex-1">
-            {/* Item Dashboard: Di atas grup, tanpa judul grup */}
-            <div className="space-y-0.5">
-              <NavItem
-                to="/"
-                active={isDashboardActive}
-                icon={LayoutDashboard}
-                label="Dashboard"
-                collapsed={collapsed}
-                onClick={(e) => confirmNavigation('/', e)}
-              />
+            {/* GROUP 1: PROGRAM */}
+            <div className="space-y-1">
+              {!collapsed && (
+                <div className="px-2.5 pb-1.5 text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">
+                  Program
+                </div>
+              )}
+              <div className="space-y-0.5">
+                {/* 1. Dashboard */}
+                <NavItem
+                  to="/?mode=weekly"
+                  active={isDashboardActive}
+                  icon={LayoutDashboard}
+                  label="Dashboard"
+                  collapsed={collapsed}
+                  onClick={(e) => confirmNavigation('/?mode=weekly', e)}
+                />
+
+                {/* 2. Input Harian */}
+                <NavItem
+                  to="/"
+                  active={isInputHarianActive}
+                  icon={LayoutGrid}
+                  label="Input Harian"
+                  collapsed={collapsed}
+                  onClick={(e) => confirmNavigation('/', e)}
+                />
+
+                {/* 3. Laporan Pekanan Santri */}
+                <NavItem
+                  to="/report/weekly"
+                  active={isReportWeeklyActive}
+                  icon={Printer}
+                  label="Laporan Pekanan Santri"
+                  collapsed={collapsed}
+                  onClick={(e) => confirmNavigation('/report/weekly', e)}
+                />
+              </div>
             </div>
 
-            {/* GROUP: PROGRAM (Hanya untuk Admin & Atasan — Walsan TIDAK dirender) */}
+            {/* GROUP 2: KOORDINATOR (Hanya untuk Admin & Atasan) */}
             {isStaff && (
               <div className="space-y-1">
                 {!collapsed && (
                   <div className="px-2.5 pb-1.5 text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">
-                    Program
+                    Koordinator
                   </div>
                 )}
                 <div className="space-y-0.5">
-                  {/* 1. Form Laporan Pekanan (Admin Only) */}
+                  {/* 1. Form Weekly Report (Admin Only) */}
                   {userRole === 'admin' && (
                     <NavItem
                       to="/weekly-report"
                       active={isWeeklyReportFormActive}
                       icon={FileText}
-                      label="Form Laporan Pekanan"
+                      label="Form Weekly Report"
                       collapsed={collapsed}
                       onClick={(e) => confirmNavigation('/weekly-report', e)}
                     />
                   )}
 
-                  {/* 2. Slide Atasan */}
+                  {/* 2. Weekly Report Koor */}
                   <NavItem
                     to="/report/weekly-progress"
                     active={isSlideActive}
                     icon={Presentation}
-                    label="Slide Atasan"
+                    label="Weekly Report Koor"
                     collapsed={collapsed}
                     onClick={(e) => confirmNavigation('/report/weekly-progress', e)}
-                  />
-
-                  {/* 3. Buku Kas */}
-                  <NavItem
-                    to="/weekly-report?tab=finance"
-                    active={isBukuKasActive}
-                    icon={Coins}
-                    label="Buku Kas"
-                    collapsed={collapsed}
-                    onClick={(e) => confirmNavigation('/weekly-report?tab=finance', e)}
                   />
                 </div>
               </div>

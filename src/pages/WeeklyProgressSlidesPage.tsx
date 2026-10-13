@@ -182,6 +182,8 @@ export const WeeklyProgressSlidesPage: React.FC = () => {
   const kasSantriChunks = useMemo(() => chunkArray(kasSantri, 6), [kasSantri])
   const kasKoordChunks = useMemo(() => chunkArray(kasKoord, 6), [kasKoord])
 
+  const SHOW_KAS_SLIDES = false // Sementara dinonaktifkan
+
   const hasAnyReport = Boolean(report)
 
   return (
@@ -893,8 +895,11 @@ export const WeeklyProgressSlidesPage: React.FC = () => {
               </section>
             ))}
 
-            {/* SLIDE 8A: KEUANGAN SANTRI (BUKU KAS UMUM) */}
-            {kasSantriChunks.map((chunk, cIdx) => (
+            {/* SLIDE 8A & 8B: KEUANGAN (BUKU KAS UMUM) - SEMENTARA DINONAKTIFKAN */}
+            {SHOW_KAS_SLIDES && (
+              <>
+                {/* SLIDE 8A: KEUANGAN SANTRI (BUKU KAS UMUM) */}
+                {kasSantriChunks.map((chunk, cIdx) => (
               <section
                 key={`kas-santri-${cIdx}`}
                 className="slide aspect-video bg-white rounded-2xl p-8 sm:p-12 shadow-2xl flex flex-col justify-between border border-neutral-200 print:rounded-none print:shadow-none print:border-none"
@@ -1101,6 +1106,8 @@ export const WeeklyProgressSlidesPage: React.FC = () => {
                 </div>
               </section>
             ))}
+              </>
+            )}
 
             {/* SLIDE 9: PENUTUP & TANDA TANGAN */}
             <section className="slide aspect-video bg-white rounded-2xl p-8 sm:p-12 shadow-2xl flex flex-col justify-between border border-neutral-200 print:rounded-none print:shadow-none print:border-none">

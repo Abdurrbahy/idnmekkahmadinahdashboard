@@ -13,7 +13,6 @@ import {
   AlertTriangle,
   ArrowUp,
   ArrowDown,
-  DollarSign,
   FileText,
   Activity,
   Users,
@@ -59,7 +58,7 @@ import type {
 } from '@/types/database'
 
 type FormTab = 'info' | 'progress' | 'issues' | 'journal' | 'sosmed' | 'finance'
-const VALID_TABS: FormTab[] = ['info', 'progress', 'issues', 'journal', 'sosmed', 'finance']
+const VALID_TABS: FormTab[] = ['info', 'progress', 'issues', 'journal', 'sosmed']
 
 interface OutletContextType {
   onToggleSidebar?: () => void
@@ -494,7 +493,6 @@ export const WeeklyReportFormPage: React.FC = () => {
             { id: 'issues', label: '3. Evaluasi Siswa', icon: Users, count: studentIssues.length },
             { id: 'journal', label: '4. Jurnal Guru', icon: BookOpen },
             { id: 'sosmed', label: '5. Postingan Sosmed', icon: Share2, count: sosmedItems.length },
-            { id: 'finance', label: '6. Buku Kas Umum', icon: DollarSign, count: kasList.length },
           ].map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id

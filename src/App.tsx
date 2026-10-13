@@ -44,8 +44,12 @@ export function App() {
               }
             />
             <Route
+              path="/dashboard"
+              element={<Navigate to="/?mode=weekly" replace />}
+            />
+            <Route
               path="/kas"
-              element={<Navigate to="/weekly-report?tab=finance" replace />}
+              element={<Navigate to="/" replace />}
             />
           </Route>
 
