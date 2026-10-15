@@ -292,10 +292,13 @@ export interface WeeklyReport {
   catatan_umum?: string | null
   rencana_pekan_depan?: string | null
   kendala?: string | null
+  report_data?: import('./weeklyReportTemplate').WeeklyReportTemplateData | null
   created_at?: string
   updated_at?: string
   created_by?: string | null
 }
+
+export * from './weeklyReportTemplate'
 
 export interface ReportProgressItem {
   id?: number

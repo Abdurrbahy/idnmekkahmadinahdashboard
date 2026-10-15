@@ -1167,20 +1167,40 @@ export async function saveWeeklyReport(
   const client = getSupabaseClient()
   if (client) {
     try {
-      const { data, error } = await client
+      const payload: Record<string, any> = {
+        pekan_mulai: report.pekan_mulai,
+        status: report.status || 'draft',
+        catatan_umum: report.catatan_umum || null,
+        rencana_pekan_depan: report.rencana_pekan_depan || null,
+        kendala: report.kendala || null,
+      }
+      if (report.report_data !== undefined) {
+        payload.report_data = report.report_data
+      }
+
+      let { data, error } = await client
         .from('weekly_reports')
-        .upsert(
-          {
-            pekan_mulai: report.pekan_mulai,
-            status: report.status || 'draft',
-            catatan_umum: report.catatan_umum || null,
-            rencana_pekan_depan: report.rencana_pekan_depan || null,
-            kendala: report.kendala || null,
-          },
-          { onConflict: 'pekan_mulai' }
-        )
+        .upsert(payload, { onConflict: 'pekan_mulai' })
         .select()
         .single()
+
+      if (error && payload.report_data) {
+        const isColMissing =
+          error.code === 'PGRST204' ||
+          error.code === '42703' ||
+          error.message?.includes('report_data')
+        if (isColMissing) {
+          console.warn('Kolom report_data belum ada di database. Menyimpan field standar.')
+          delete payload.report_data
+          const retry = await client
+            .from('weekly_reports')
+            .upsert(payload, { onConflict: 'pekan_mulai' })
+            .select()
+            .single()
+          data = retry.data
+          error = retry.error
+        }
+      }
 
       if (error) return { success: false, error: parsePostgresError(error) }
       return { success: true, data: data as WeeklyReport }
@@ -1189,6 +1209,61 @@ export async function saveWeeklyReport(
     }
   }
   return { success: false, error: 'Database belum terhubung.' }
+}
+
+export async function uploadReportPhoto(
+  reportId: number,
+  slotNumber: number,
+  file: File
+): Promise<{ success: boolean; url?: string; path?: string; error?: string }> {
+  const client = getSupabaseClient()
+  if (!client) return { success: false, error: 'Database belum terhubung.' }
+
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
+  if (!allowedTypes.includes(file.type.toLowerCase())) {
+    return { success: false, error: 'Format file tidak didukung. Harap gunakan format JPEG, PNG, atau WebP.' }
+  }
+
+  const maxBytes = 5 * 1024 * 1024 // 5MB
+  if (file.size > maxBytes) {
+    return { success: false, error: 'Ukuran file melebihi batas 5MB.' }
+  }
+
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+  const fileName = `photo-0${slotNumber}-${Date.now()}.${ext}`
+  const filePath = `weekly-reports/${reportId}/${fileName}`
+
+  try {
+    const { data, error } = await client.storage
+      .from('dokumentasi')
+      .upload(filePath, file, {
+        upsert: true,
+        cacheControl: '3600',
+      })
+
+    if (error) {
+      return { success: false, error: error.message || 'Gagal mengunggah foto ke storage.' }
+    }
+
+    const { data: pubData } = client.storage.from('dokumentasi').getPublicUrl(data.path)
+    return { success: true, url: pubData.publicUrl, path: data.path }
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Terjadi kesalahan saat upload foto.' }
+  }
+}
+
+export async function deleteReportPhoto(
+  storagePath: string
+): Promise<{ success: boolean; error?: string }> {
+  const client = getSupabaseClient()
+  if (!client) return { success: false, error: 'Database belum terhubung.' }
+  try {
+    const { error } = await client.storage.from('dokumentasi').remove([storagePath])
+    if (error) return { success: false, error: error.message }
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message }
+  }
 }
 
 export async function fetchReportProgressItems(reportId: number): Promise<ReportProgressItem[]> {

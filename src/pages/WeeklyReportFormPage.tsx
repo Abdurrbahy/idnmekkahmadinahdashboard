@@ -1,1467 +1,689 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { useSearchParams, useNavigate, Link, useOutletContext } from 'react-router-dom'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  Save,
-  Plus,
-  Trash2,
-  Copy,
-  Presentation,
-  CheckCircle2,
-  AlertTriangle,
-  ArrowUp,
-  ArrowDown,
   FileText,
-  Activity,
-  Users,
-  Share2,
+  TrendingUp,
+  Sparkles,
   BookOpen,
-  Menu,
+  Award,
+  MessageSquare,
+  CalendarDays,
+  Image,
+  AlertTriangle,
+  Target,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { useAuth } from '@/context/AuthContext'
 import {
   todayRiyadh,
   pekanMulai,
-  formatPekanDisplay,
+  pekanSelesai,
+  formatDateRiyadh,
   addDaysToDate,
 } from '@/lib/dateUtils'
+import { nomorPekanBulan } from '@/lib/printUtils'
 import {
   fetchStudents,
   fetchWeeklyReport,
   saveWeeklyReport,
-  fetchReportProgressItems,
-  saveReportProgressItems,
-  copyProgressFromPreviousWeek,
-  fetchReportStudentIssues,
-  saveReportStudentIssues,
-  fetchTeacherJournalActivities,
-  fetchTeacherJournalRecords,
-  saveTeacherJournalRecords,
-  fetchReportSocialMedia,
-  saveReportSocialMedia,
-  fetchKasTransaksi,
-  saveKasTransaksi,
-  deleteKasTransaksi,
+  fetchWeeklyAttendance,
+  fetchWeeklyQuran,
+  fetchWeeklyMutabaah,
+  fetchWeeklySubmissions,
+  fetchWeeklyActivities,
 } from '@/lib/supabase'
 import type {
   Student,
   WeeklyReport,
-  ReportProgressItem,
-  ReportStudentIssue,
-  TeacherJournalActivity,
-  ReportSocialMedia,
-  VKasTransaksi,
-  KasTransaksi,
+  WeeklyAttendance,
+  WeeklyQuran,
+  WeeklyMutabaah,
+  Submission,
+  Activity,
 } from '@/types/database'
+import type {
+  ReportTab,
+  WeeklyReportTemplateData,
+} from '@/types/weeklyReportTemplate'
+import {
+  REPORT_SECTION_ORDER,
+  DEFAULT_FOKUS_PEKAN_DEPAN,
+} from '@/types/weeklyReportTemplate'
+import {
+  calculateAttendanceAverage,
+  calculateQuranAggregates,
+  calculateMutabaahAverage,
+  generateSuggestedHighlights,
+  validateWeeklyReportCompleteness,
+} from '@/lib/weeklyReportCalculator'
 
-type FormTab = 'info' | 'progress' | 'issues' | 'journal' | 'sosmed' | 'finance'
-const VALID_TABS: FormTab[] = ['info', 'progress', 'issues', 'journal', 'sosmed']
-
-interface OutletContextType {
-  onToggleSidebar?: () => void
-  collapsed?: boolean
-  setCollapsed?: (val: boolean) => void
-}
+import { WeeklyReportHeader } from '@/components/weekly-report/WeeklyReportHeader'
+import { SectionMetadata } from '@/components/weekly-report/SectionMetadata'
+import { SectionExecutiveSummary } from '@/components/weekly-report/SectionExecutiveSummary'
+import { SectionMutabaah } from '@/components/weekly-report/SectionMutabaah'
+import { SectionQuran } from '@/components/weekly-report/SectionQuran'
+import { SectionTahfidzKualitas } from '@/components/weekly-report/SectionTahfidzKualitas'
+import { SectionArabicSpeaking } from '@/components/weekly-report/SectionArabicSpeaking'
+import { SectionProgramActivities } from '@/components/weekly-report/SectionProgramActivities'
+import { SectionDocumentation } from '@/components/weekly-report/SectionDocumentation'
+import { SectionKendala } from '@/components/weekly-report/SectionKendala'
+import { SectionFokusBerikutnya } from '@/components/weekly-report/SectionFokusBerikutnya'
+import { ValidationModal } from '@/components/weekly-report/ValidationModal'
 
 export const WeeklyReportFormPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const { profile } = useAuth()
-  const outletCtx = useOutletContext<OutletContextType | null>()
 
-  // Verify Admin Role
+  // Guard: Admin can edit, Atasan is read-only, Walsan is blocked
   const userRole = profile?.role || 'walsan'
+  const isStaff = userRole === 'admin' || userRole === 'atasan'
+  const canEdit = userRole === 'admin'
+  const readOnly = !canEdit
+
   useEffect(() => {
-    if (profile && userRole !== 'admin') {
+    if (profile && !isStaff) {
       navigate('/', { replace: true })
     }
-  }, [profile, userRole, navigate])
+  }, [profile, isStaff, navigate])
 
+  // Current Week Parameter (Always Ahad / Sunday in Asia/Riyadh)
   const defaultPekan = pekanMulai(todayRiyadh())
   const rawPekan = searchParams.get('pekan') || defaultPekan
   const currentPekan = pekanMulai(rawPekan)
 
-  const tabParam = searchParams.get('tab') as FormTab | null
-  const initialTab: FormTab = tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'info'
-  const [activeTab, setActiveTab] = useState<FormTab>(initialTab)
+  // Section Tab Navigation
+  const tabParam = searchParams.get('tab') as ReportTab | null
+  const initialTab: ReportTab =
+    tabParam && REPORT_SECTION_ORDER.some((s) => s.key === tabParam)
+      ? tabParam
+      : 'metadata'
+  const [activeTab, setActiveTab] = useState<ReportTab>(initialTab)
 
-  // Keep activeTab in sync with query parameter
-  useEffect(() => {
-    const currentTabParam = searchParams.get('tab') as FormTab | null
-    if (currentTabParam && VALID_TABS.includes(currentTabParam) && currentTabParam !== activeTab) {
-      setActiveTab(currentTabParam)
-    }
-  }, [searchParams, activeTab])
-
+  // Loading & Save States
   const [loading, setLoading] = useState(true)
-  const [savingTab, setSavingTab] = useState<string | null>(null)
+  const [saveState, setSaveState] = useState<'idle' | 'unsaved' | 'saving' | 'saved' | 'error'>('idle')
+  const [lastSavedAt, setLastSavedAt] = useState<string | undefined>(undefined)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [isValidationOpen, setIsValidationOpen] = useState(false)
 
-  // Master Data
+  // Save race-condition protection ref
+  const isSavingRef = useRef(false)
+
+  // Master & Operational Data States
   const [students, setStudents] = useState<Student[]>([])
-  const [journalActs, setJournalActs] = useState<TeacherJournalActivity[]>([])
+  const [weeklyAttendance, setWeeklyAttendance] = useState<WeeklyAttendance[]>([])
+  const [weeklyQuran, setWeeklyQuran] = useState<WeeklyQuran[]>([])
+  const [weeklyMutabaah, setWeeklyMutabaah] = useState<WeeklyMutabaah[]>([])
+  const [weeklySubmissions, setWeeklySubmissions] = useState<Submission[]>([])
+  const [weeklyActivities, setWeeklyActivities] = useState<Activity[]>([])
 
-  // Main Report Info
-  const [report, setReport] = useState<WeeklyReport>({
-    pekan_mulai: currentPekan,
-    status: 'draft',
-    catatan_umum: '',
-    rencana_pekan_depan: '',
-    kendala: '',
-  })
+  // Main Report DB Entity
+  const [currentReportId, setCurrentReportId] = useState<number | undefined>(undefined)
 
-  // Child Data
-  const [progressItems, setProgressItems] = useState<ReportProgressItem[]>([])
-  const [studentIssues, setStudentIssues] = useState<ReportStudentIssue[]>([])
-  const [journalRecords, setJournalRecords] = useState<Record<number, { status: 'completed' | 'partial' | 'not_done'; catatan: string }>>({})
-  const [sosmedItems, setSosmedItems] = useState<ReportSocialMedia[]>([])
+  // 10 Sections Template State
+  const weekInfo = useMemo(() => nomorPekanBulan(currentPekan), [currentPekan])
+  const pSelesai = useMemo(() => pekanSelesai(currentPekan), [currentPekan])
 
-  // Finance
-  const [kasList, setKasList] = useState<VKasTransaksi[]>([])
-  const [financeGroup, setFinanceGroup] = useState<'santri' | 'koordinator'>('santri')
-  const [newKas, setNewKas] = useState<Partial<KasTransaksi>>({
-    kelompok: 'santri',
-    tanggal: todayRiyadh(),
-    kebutuhan: '',
-    kategori: 'operasional',
-    volume: 1,
-    satuan: 'pax',
-    harga: 0,
-    arah: 'keluar',
-    keterangan: '',
-  })
+  const initialTemplateState: WeeklyReportTemplateData = useMemo(() => {
+    return {
+      metadata: {
+        nama_laporan: 'Laporan Pekanan Program IDN Mekkah Madinah',
+        cabang: 'Mekkah & Madinah',
+        pekan_ke: weekInfo.nomor,
+        bulan: weekInfo.namaBulan,
+        tahun: weekInfo.tahun,
+        tanggal_awal: currentPekan,
+        tanggal_akhir: pSelesai,
+        tanggal_disiapkan: todayRiyadh(),
+        koordinator: profile?.nama || profile?.email?.split('@')[0] || 'Ustadz Koordinator',
+        status: 'draft',
+      },
+      executive_summary: {
+        highlights: [],
+      },
+      mutabaah: {
+        catatan_evaluasi: '',
+      },
+      quran: {
+        catatan_evaluasi: '',
+      },
+      tahfidz_kualitas: {
+        attention_point: '',
+        catatan_perkembangan: {},
+      },
+      arabic_speaking: {
+        vlog_schedule: [
+          {
+            id: 'vlog-1',
+            hari: 'Senin',
+            tanggal: addDaysToDate(currentPekan, 1),
+            nama_peserta: '',
+            judul_topik: 'Percakapan Bahasa Arab Sehari-hari',
+            status: 'Terjadwal',
+          },
+          {
+            id: 'vlog-2',
+            hari: 'Rabu',
+            tanggal: addDaysToDate(currentPekan, 3),
+            nama_peserta: '',
+            judul_topik: 'Mendeskripsikan Suasana Masjid Nabawi',
+            status: 'Terjadwal',
+          },
+        ],
+        podcast_wat: {
+          nama_kegiatan: 'Weekend Arabic Talk (WAT)',
+          status: 'Terjadwal',
+          hari_tanggal: 'Sabtu Malam Ba\'da Isya',
+          peserta: 'Santri Halaqah',
+          host: profile?.nama || 'Koordinator',
+          topik: 'Pengalaman Ibadah dan Menuntut Ilmu di Kota Nabi',
+        },
+        catatan_evaluasi: '',
+      },
+      program_activities: {
+        manual_activities: [],
+        catatan_umum: '',
+      },
+      documentation: {
+        photos: [
+          { slot: 1 },
+          { slot: 2 },
+          { slot: 3 },
+          { slot: 4 },
+        ],
+      },
+      kendala: {
+        tidak_ada_kendala: false,
+        items: [],
+      },
+      fokus_pekan_depan: {
+        items: DEFAULT_FOKUS_PEKAN_DEPAN.map((it, idx) => ({
+          ...it,
+          id: `fokus-${idx + 1}`,
+        })),
+      },
+    }
+  }, [currentPekan, weekInfo, pSelesai, profile])
 
-  // 1. Load Master Data
+  const [formData, setFormData] = useState<WeeklyReportTemplateData>(initialTemplateState)
+
+  // 1. Load Students (Master Data)
   useEffect(() => {
     async function loadMaster() {
-      const [st, jActs] = await Promise.all([
-        fetchStudents(),
-        fetchTeacherJournalActivities(),
-      ])
+      const st = await fetchStudents()
       setStudents(st)
-      setJournalActs(jActs)
     }
     loadMaster()
   }, [])
 
-  // 2. Load Report Data for selected week
+  // 2. Load Operational Data & Report Data for selected week
   const loadWeekData = useCallback(async (pMulai: string) => {
     setLoading(true)
     setFeedback(null)
+    setSaveState('idle')
+
     try {
-      let rep = await fetchWeeklyReport(pMulai)
-      if (!rep) {
-        // Auto-create draft if not exist
-        const created = await saveWeeklyReport({
-          pekan_mulai: pMulai,
-          status: 'draft',
-        })
-        if (created.data) rep = created.data
-      }
+      const [att, qrn, mtb, subs, acts, rep] = await Promise.all([
+        fetchWeeklyAttendance(pMulai),
+        fetchWeeklyQuran(pMulai),
+        fetchWeeklyMutabaah(pMulai),
+        fetchWeeklySubmissions(pMulai),
+        fetchWeeklyActivities(pMulai),
+        fetchWeeklyReport(pMulai),
+      ])
+
+      setWeeklyAttendance(att)
+      setWeeklyQuran(qrn)
+      setWeeklyMutabaah(mtb)
+      setWeeklySubmissions(subs)
+      setWeeklyActivities(acts)
+
+      const wInfo = nomorPekanBulan(pMulai)
+      const pEnd = pekanSelesai(pMulai)
 
       if (rep) {
-        setReport(rep)
-        if (rep.id) {
-          const [pItems, sIssues, jRecs, sMedia, kas] = await Promise.all([
-            fetchReportProgressItems(rep.id),
-            fetchReportStudentIssues(rep.id),
-            fetchTeacherJournalRecords(rep.id),
-            fetchReportSocialMedia(rep.id),
-            fetchKasTransaksi(),
-          ])
-          setProgressItems(pItems)
-          setStudentIssues(sIssues)
-          setSosmedItems(sMedia)
-          setKasList(kas)
-
-          // Map journal records
-          const map: Record<number, { status: 'completed' | 'partial' | 'not_done'; catatan: string }> = {}
-          jRecs.forEach((r) => {
-            map[r.activity_id] = {
-              status: r.status,
-              catatan: r.catatan || '',
-            }
-          })
-          setJournalRecords(map)
+        setCurrentReportId(rep.id)
+        if (rep.report_data) {
+          setFormData(rep.report_data)
+        } else {
+          // If existing report doesn't have report_data JSONB yet, build base from legacy columns
+          const base: WeeklyReportTemplateData = {
+            ...initialTemplateState,
+            metadata: {
+              ...initialTemplateState.metadata,
+              tanggal_awal: pMulai,
+              tanggal_akhir: pEnd,
+              pekan_ke: wInfo.nomor,
+              bulan: wInfo.namaBulan,
+              tahun: wInfo.tahun,
+              status: rep.status || 'draft',
+            },
+            mutabaah: {
+              catatan_evaluasi: rep.catatan_umum || '',
+            },
+            quran: {
+              catatan_evaluasi: rep.catatan_umum || '',
+            },
+            program_activities: {
+              manual_activities: [],
+              catatan_umum: rep.catatan_umum || '',
+            },
+            kendala: {
+              tidak_ada_kendala: !rep.kendala,
+              items: rep.kendala
+                ? [
+                    {
+                      id: 'legacy-kendala',
+                      judul: 'Catatan Kendala Pekan Ini',
+                      deskripsi: rep.kendala,
+                      dampak: 'Perlu penanganan',
+                      prioritas: 'Sedang',
+                      tindak_lanjut: 'Tindak lanjut oleh koordinator',
+                      penanggung_jawab: 'Koordinator',
+                      target_penyelesaian: 'Pekan depan',
+                      status: 'Sedang berjalan',
+                    },
+                  ]
+                : [],
+            },
+            fokus_pekan_depan: {
+              items: DEFAULT_FOKUS_PEKAN_DEPAN.map((it, idx) => ({
+                ...it,
+                id: `fokus-${idx + 1}`,
+              })),
+            },
+          }
+          setFormData(base)
         }
+      } else {
+        // No report in DB yet, initialize new template
+        setCurrentReportId(undefined)
+        const newTemplate: WeeklyReportTemplateData = {
+          ...initialTemplateState,
+          metadata: {
+            ...initialTemplateState.metadata,
+            tanggal_awal: pMulai,
+            tanggal_akhir: pEnd,
+            pekan_ke: wInfo.nomor,
+            bulan: wInfo.namaBulan,
+            tahun: wInfo.tahun,
+          },
+        }
+        setFormData(newTemplate)
       }
-    } catch (e) {
-      console.warn('Error loading weekly report form data:', e)
+    } catch (err: any) {
+      console.warn('Error loading week operational data:', err)
+      setFeedback({ type: 'error', message: 'Gagal memuat data operasional pekan terpilih.' })
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [initialTemplateState])
 
   useEffect(() => {
     loadWeekData(currentPekan)
   }, [currentPekan, loadWeekData])
 
+  // Aggregated Operational Metrics
+  const attendanceAvg = useMemo(() => calculateAttendanceAverage(weeklyAttendance), [weeklyAttendance])
+  const quranAggs = useMemo(() => calculateQuranAggregates(weeklyQuran), [weeklyQuran])
+  const mutabaahAvg = useMemo(() => calculateMutabaahAverage(weeklyMutabaah), [weeklyMutabaah])
+  const activeStudentsCount = useMemo(() => students.filter((s) => s.status === 'aktif').length, [students])
+
+  // Completeness Validation
+  const validationResult = useMemo(
+    () => validateWeeklyReportCompleteness(formData, weeklyActivities.length > 0),
+    [formData, weeklyActivities.length]
+  )
+
+  // Handle auto-suggest highlights
+  const handleAutoSuggestHighlights = useCallback(() => {
+    const suggested = generateSuggestedHighlights({
+      attendanceAvg,
+      totalAyat: quranAggs.totalAyat,
+      totalZiyadah: quranAggs.totalZiyadah,
+      totalMurajaah: quranAggs.totalMurajaah,
+      mutabaahAvg,
+      quranList: weeklyQuran,
+      students,
+    })
+    setFormData((prev) => ({
+      ...prev,
+      executive_summary: {
+        highlights: suggested,
+      },
+    }))
+    setSaveState('unsaved')
+  }, [attendanceAvg, quranAggs, mutabaahAvg, weeklyQuran, students])
+
+  // If highlights are empty, auto-populate them once operational data loads
+  useEffect(() => {
+    if (!loading && formData.executive_summary.highlights.length === 0) {
+      handleAutoSuggestHighlights()
+    }
+  }, [loading, formData.executive_summary.highlights.length, handleAutoSuggestHighlights])
+
+  // Week change handler with unsaved confirmation
   const handleWeekChange = (newPekan: string) => {
+    if (saveState === 'unsaved') {
+      const confirmLeave = window.confirm(
+        'Ada perubahan yang belum disimpan pada pekan ini. Pindah pekan dan abaikan perubahan?'
+      )
+      if (!confirmLeave) return
+    }
     const newParams = new URLSearchParams(searchParams)
     newParams.set('pekan', newPekan)
     setSearchParams(newParams)
   }
 
-  const handleTabChange = (newTab: FormTab) => {
+  // Section Tab Change Handler
+  const handleTabChange = (newTab: ReportTab) => {
     setActiveTab(newTab)
     const newParams = new URLSearchParams(searchParams)
     newParams.set('tab', newTab)
     setSearchParams(newParams, { replace: true })
   }
 
-  // --- SAVE HANDLERS ---
-
-  const handleSaveInfo = async () => {
-    setSavingTab('info')
+  // --- SAVE LOGIC ---
+  const handleSaveReport = async () => {
+    if (!canEdit || isSavingRef.current) return
+    isSavingRef.current = true
+    setSaveState('saving')
     setFeedback(null)
-    const res = await saveWeeklyReport(report)
-    setSavingTab(null)
-    if (res.success && res.data) {
-      setReport(res.data)
-      setFeedback({ type: 'success', message: 'Status & Catatan berhasil disimpan!' })
-    } else {
-      setFeedback({ type: 'error', message: res.error || 'Gagal menyimpan info laporan.' })
-    }
-  }
 
-  const handleSaveProgress = async () => {
-    if (!report.id) return
-    setSavingTab('progress')
-    setFeedback(null)
-    const res = await saveReportProgressItems(report.id, progressItems)
-    setSavingTab(null)
-    if (res.success) {
-      setFeedback({ type: 'success', message: 'Kemajuan Pekanan berhasil disimpan!' })
-      const updated = await fetchReportProgressItems(report.id)
-      setProgressItems(updated)
-    } else {
-      setFeedback({ type: 'error', message: res.error || 'Gagal menyimpan kemajuan pekanan.' })
-    }
-  }
+    try {
+      // Build top-level summary for backwards compatibility with legacy columns
+      const legacyCatatan = [
+        formData.mutabaah.catatan_evaluasi ? `[Mutabaah] ${formData.mutabaah.catatan_evaluasi}` : null,
+        formData.quran.catatan_evaluasi ? `[Tahfidz] ${formData.quran.catatan_evaluasi}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n\n')
 
-  const handleCopyPrevWeekProgress = async () => {
-    if (!report.id) return
-    const prevWeek = addDaysToDate(currentPekan, -7)
-    setSavingTab('progress')
-    setFeedback(null)
-    const res = await copyProgressFromPreviousWeek(report.id, prevWeek)
-    setSavingTab(null)
-    if (res.success) {
-      setFeedback({ type: 'success', message: `Berhasil menyalin ${res.count || 0} item dari pekan sebelumnya!` })
-      const updated = await fetchReportProgressItems(report.id)
-      setProgressItems(updated)
-    } else {
-      setFeedback({ type: 'error', message: res.error || 'Gagal menyalin kemajuan pekan lalu.' })
-    }
-  }
+      const legacyKendala = formData.kendala.tidak_ada_kendala
+        ? null
+        : formData.kendala.items.map((it) => `${it.judul}: ${it.tindak_lanjut}`).join('\n')
 
-  const handleSaveIssues = async () => {
-    if (!report.id) return
-    setSavingTab('issues')
-    setFeedback(null)
-    const res = await saveReportStudentIssues(report.id, studentIssues)
-    setSavingTab(null)
-    if (res.success) {
-      setFeedback({ type: 'success', message: 'Catatan Siswa Bermasalah berhasil disimpan!' })
-      const updated = await fetchReportStudentIssues(report.id)
-      setStudentIssues(updated)
-    } else {
-      setFeedback({ type: 'error', message: res.error || 'Gagal menyimpan evaluasi siswa.' })
-    }
-  }
+      const legacyRencana = formData.fokus_pekan_depan.items
+        .map((f) => `${f.kategori} - ${f.judul}: ${f.deskripsi_target}`)
+        .join('\n')
 
-  const handleSaveJournal = async () => {
-    if (!report.id) return
-    setSavingTab('journal')
-    setFeedback(null)
-    const payload = journalActs.map((act) => {
-      const rec = journalRecords[act.id]
-      return {
-        activity_id: act.id,
-        status: rec?.status || 'completed',
-        catatan: rec?.catatan || null,
+      const payload: Partial<WeeklyReport> & { pekan_mulai: string } = {
+        pekan_mulai: currentPekan,
+        status: formData.metadata.status || 'draft',
+        catatan_umum: legacyCatatan || null,
+        kendala: legacyKendala || null,
+        rencana_pekan_depan: legacyRencana || null,
+        report_data: formData,
       }
-    })
-    const res = await saveTeacherJournalRecords(report.id, payload)
-    setSavingTab(null)
-    if (res.success) {
-      setFeedback({ type: 'success', message: 'Jurnal Guru berhasil disimpan!' })
-    } else {
-      setFeedback({ type: 'error', message: res.error || 'Gagal menyimpan jurnal guru.' })
+
+      const res = await saveWeeklyReport(payload)
+
+      if (res.success && res.data) {
+        setCurrentReportId(res.data.id)
+        setSaveState('saved')
+        setLastSavedAt(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))
+        setFeedback({ type: 'success', message: 'Laporan mingguan berhasil disimpan!' })
+      } else {
+        setSaveState('error')
+        setFeedback({ type: 'error', message: res.error || 'Gagal menyimpan laporan mingguan.' })
+      }
+    } catch (err: any) {
+      setSaveState('error')
+      setFeedback({ type: 'error', message: err.message || 'Terjadi kesalahan sistem saat menyimpan.' })
+    } finally {
+      isSavingRef.current = false
     }
   }
 
-  const handleSaveSosmed = async () => {
-    if (!report.id) return
-    setSavingTab('sosmed')
-    setFeedback(null)
-    const res = await saveReportSocialMedia(report.id, sosmedItems)
-    setSavingTab(null)
-    if (res.success) {
-      setFeedback({ type: 'success', message: 'Laporan Sosmed berhasil disimpan!' })
-      const updated = await fetchReportSocialMedia(report.id)
-      setSosmedItems(updated)
-    } else {
-      setFeedback({ type: 'error', message: res.error || 'Gagal menyimpan sosmed.' })
-    }
+  // Update Section Helpers
+  const updateSection = <K extends keyof WeeklyReportTemplateData>(
+    section: K,
+    updater: (prev: WeeklyReportTemplateData[K]) => WeeklyReportTemplateData[K]
+  ) => {
+    if (readOnly) return
+    setFormData((prev) => ({
+      ...prev,
+      [section]: updater(prev[section]),
+    }))
+    setSaveState('unsaved')
   }
 
-  const handleAddKas = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newKas.kebutuhan || !newKas.harga) {
-      alert('Mohon isi kebutuhan dan harga transaksi!')
-      return
-    }
-    setSavingTab('finance')
-    setFeedback(null)
-    const res = await saveKasTransaksi({
-      ...newKas,
-      kelompok: financeGroup,
-    })
-    setSavingTab(null)
-    if (res.success) {
-      setNewKas({
-        kelompok: financeGroup,
-        tanggal: todayRiyadh(),
-        kebutuhan: '',
-        kategori: 'operasional',
-        volume: 1,
-        satuan: 'pax',
-        harga: 0,
-        arah: 'keluar',
-        keterangan: '',
-      })
-      const updated = await fetchKasTransaksi()
-      setKasList(updated)
-      setFeedback({ type: 'success', message: 'Transaksi kas berhasil ditambahkan!' })
-    } else {
-      setFeedback({ type: 'error', message: res.error || 'Gagal menambahkan transaksi kas.' })
+  // Section Icon mapping
+  const getSectionIcon = (key: ReportTab) => {
+    switch (key) {
+      case 'metadata':
+        return FileText
+      case 'executive_summary':
+        return TrendingUp
+      case 'mutabaah':
+        return Sparkles
+      case 'quran':
+        return BookOpen
+      case 'tahfidz_kualitas':
+        return Award
+      case 'arabic_speaking':
+        return MessageSquare
+      case 'program_activities':
+        return CalendarDays
+      case 'documentation':
+        return Image
+      case 'kendala':
+        return AlertTriangle
+      case 'fokus_pekan_depan':
+        return Target
     }
   }
-
-  const handleDeleteKas = async (id?: number) => {
-    if (!id) return
-    if (!confirm('Apakah Anda yakin ingin menghapus transaksi kas ini?')) return
-    const res = await deleteKasTransaksi(id)
-    if (res.success) {
-      const updated = await fetchKasTransaksi()
-      setKasList(updated)
-    } else {
-      alert(res.error || 'Gagal menghapus transaksi.')
-    }
-  }
-
-  const formatRupiah = (val: number) => {
-    const isNeg = val < 0
-    const absVal = Math.abs(val)
-    const formatted = new Intl.NumberFormat('id-ID', {
-      maximumFractionDigits: 0,
-    }).format(absVal)
-    return isNeg ? `-Rp${formatted}` : `Rp${formatted}`
-  }
-
-  // Filtered Kas for active group
-  const filteredKas = useMemo(() => {
-    return kasList.filter((k) => k.kelompok === financeGroup)
-  }, [kasList, financeGroup])
-
-  const totalSaldoGroup = useMemo(() => {
-    if (filteredKas.length === 0) return 0
-    return filteredKas[filteredKas.length - 1].sisa_saldo
-  }, [filteredKas])
 
   return (
-    <div className="min-h-screen bg-neutral-100/50 pb-20 text-neutral-900 font-sans">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
       {/* 1. Header Bar */}
-      <header className="sticky top-0 z-30 bg-white border-b border-neutral-200 px-4 py-3 shadow-xs">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 sm:gap-3">
-            {outletCtx?.onToggleSidebar && (
-              <button
-                type="button"
-                onClick={outletCtx.onToggleSidebar}
-                className="lg:hidden p-2 -ml-2 text-neutral-600 hover:text-neutral-900 rounded-lg hover:bg-neutral-100 min-h-[44px] min-w-[44px] flex items-center justify-center focus:outline-none"
-                aria-label="Buka Menu"
-                title="Buka Menu"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/')}
-              className="text-xs font-semibold gap-1.5"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Dashboard
-            </Button>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold text-neutral-900 leading-tight">
-                  Pengisian Weekly Progress Report
-                </h1>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    report.status === 'final'
-                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                      : 'bg-amber-100 text-amber-800 border border-amber-300'
-                  }`}
-                >
-                  {report.status}
-                </span>
-              </div>
-              <p className="text-[11px] text-neutral-500">
-                Laporan Internal Manajemen & Atasan • Waktu Saudi (Asia/Riyadh)
-              </p>
-            </div>
-          </div>
+      <WeeklyReportHeader
+        currentPekan={currentPekan}
+        onWeekChange={handleWeekChange}
+        status={validationResult.status}
+        saveState={saveState}
+        lastSavedAt={lastSavedAt}
+        canEdit={canEdit}
+        onSave={handleSaveReport}
+        onValidate={() => setIsValidationOpen(true)}
+        onViewSlides={() => navigate(`/report/weekly-progress?pekan=${currentPekan}`)}
+      />
 
+      {/* Feedback Alert */}
+      {feedback && (
+        <div
+          className={`p-3.5 rounded-xl border text-xs flex items-center justify-between gap-2 shadow-2xs ${
+            feedback.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              : 'bg-rose-50 border-rose-200 text-rose-900'
+          }`}
+        >
           <div className="flex items-center gap-2">
-            {/* Week Navigator */}
-            <div className="flex items-center gap-1 bg-neutral-100 p-0.5 rounded-lg border border-neutral-200 text-xs">
-              <Button
-                variant="ghost"
-                size="xsIcon"
-                onClick={() => handleWeekChange(addDaysToDate(currentPekan, -7))}
-                className="h-7 w-7 text-neutral-600"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="px-2 font-semibold text-neutral-800">
-                {formatPekanDisplay(currentPekan)}
-              </span>
-              <Button
-                variant="ghost"
-                size="xsIcon"
-                onClick={() => handleWeekChange(addDaysToDate(currentPekan, 7))}
-                className="h-7 w-7 text-neutral-600"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {/* Quick Preview Slides Button */}
-            <Link
-              to={`/report/weekly-progress?pekan=${currentPekan}`}
-              target="_blank"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 text-xs font-bold shadow-xs transition-colors"
-            >
-              <Presentation className="h-4 w-4" />
-              <span>Lihat Presentasi</span>
-            </Link>
+            {feedback.type === 'success' ? (
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+            )}
+            <span className="font-semibold">{feedback.message}</span>
           </div>
-        </div>
-      </header>
-
-      {/* 2. Main Body & Tab Navigation */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
-        {/* Feedback Alert */}
-        {feedback && (
-          <div
-            className={`p-3 rounded-xl flex items-center justify-between text-xs font-semibold border ${
-              feedback.type === 'success'
-                ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
-                : 'bg-rose-50 text-rose-900 border-rose-200'
-            }`}
+          <button
+            type="button"
+            onClick={() => setFeedback(null)}
+            className="text-xs font-bold opacity-60 hover:opacity-100"
           >
-            <div className="flex items-center gap-2">
-              {feedback.type === 'success' ? (
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-              ) : (
-                <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
-              )}
-              <span>{feedback.message}</span>
-            </div>
-            <button
-              onClick={() => setFeedback(null)}
-              className="text-neutral-400 hover:text-neutral-600 text-sm"
-            >
-              ×
-            </button>
-          </div>
-        )}
+            ✕
+          </button>
+        </div>
+      )}
 
-        {/* Tab Navigation */}
-        <div className="flex items-center gap-1.5 overflow-x-auto border-b border-neutral-200 pb-2 scrollbar-none">
-          {[
-            { id: 'info', label: '1. Status & Catatan', icon: FileText },
-            { id: 'progress', label: '2. Kemajuan Pekanan', icon: Activity, count: progressItems.length },
-            { id: 'issues', label: '3. Evaluasi Siswa', icon: Users, count: studentIssues.length },
-            { id: 'journal', label: '4. Jurnal Guru', icon: BookOpen },
-            { id: 'sosmed', label: '5. Postingan Sosmed', icon: Share2, count: sosmedItems.length },
-          ].map((tab) => {
-            const Icon = tab.icon
-            const isActive = activeTab === tab.id
+      {/* 2. Section Navigation Tabs (10 Sections) */}
+      <div className="bg-white p-2 rounded-2xl border border-neutral-200/90 shadow-2xs overflow-x-auto scrollbar-thin">
+        <div className="flex items-center gap-1.5 min-w-max">
+          {REPORT_SECTION_ORDER.map((sec) => {
+            const Icon = getSectionIcon(sec.key)
+            const isActive = activeTab === sec.key
+
             return (
               <button
-                key={tab.id}
+                key={sec.key}
                 type="button"
-                onClick={() => handleTabChange(tab.id as FormTab)}
-                className={`flex flex-shrink-0 items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all ${
+                onClick={() => handleTabChange(sec.key)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
                   isActive
-                    ? 'bg-white text-neutral-900 shadow-2xs border border-neutral-200 font-bold'
-                    : 'text-neutral-500 hover:bg-white/60 hover:text-neutral-800'
+                    ? 'bg-neutral-900 text-white shadow-2xs'
+                    : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
                 }`}
               >
-                <Icon className={`h-4 w-4 ${isActive ? 'text-neutral-900' : 'text-neutral-400'}`} />
-                <span>{tab.label}</span>
-                {tab.count !== undefined && tab.count > 0 && (
-                  <span
-                    className={`ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
-                      isActive ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-600'
-                    }`}
-                  >
-                    {tab.count}
-                  </span>
-                )}
+                <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-white' : 'text-neutral-500'}`} />
+                <span>
+                  {sec.number}. {sec.title.split('(')[0].trim()}
+                </span>
               </button>
             )
           })}
         </div>
+      </div>
 
-        {loading ? (
-          <div className="py-20 text-center text-xs text-neutral-500">
-            Memuat formulir laporan pekanan...
-          </div>
-        ) : (
-          <div className="bg-white rounded-2xl p-6 border border-neutral-200 shadow-xs space-y-6">
-            {/* TAB 1: STATUS & CATATAN UMUM */}
-            {activeTab === 'info' && (
-              <div className="space-y-5 max-w-3xl">
-                <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
-                  <div>
-                    <h2 className="text-sm font-bold text-neutral-900">
-                      Status Laporan & Catatan Penutup
-                    </h2>
-                    <p className="text-xs text-neutral-500">
-                      Mengatur status publikasi internal dan teks evaluasi penutup (Slide 1 & Slide 9).
-                    </p>
-                  </div>
-                  <Button
-                    onClick={handleSaveInfo}
-                    disabled={savingTab === 'info'}
-                    className="bg-neutral-900 text-white hover:bg-neutral-800 text-xs font-bold gap-1.5"
-                  >
-                    <Save className="h-4 w-4" />
-                    <span>{savingTab === 'info' ? 'Menyimpan...' : 'Simpan Info'}</span>
-                  </Button>
-                </div>
+      {/* 3. Section Content Renderer */}
+      {loading ? (
+        <div className="py-24 text-center text-xs text-neutral-400 bg-white rounded-2xl border border-neutral-200 shadow-2xs">
+          Memuat data operasional pekan {formatDateRiyadh(currentPekan)}...
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {activeTab === 'metadata' && (
+            <SectionMetadata
+              metadata={formData.metadata}
+              onChange={(meta) => updateSection('metadata', () => meta)}
+              readOnly={readOnly}
+            />
+          )}
 
-                <div className="space-y-4 text-xs">
-                  <div>
-                    <label className="font-bold text-neutral-700 block mb-1">Status Laporan</label>
-                    <div className="flex gap-4">
-                      <label className="flex items-center gap-2 cursor-pointer font-medium">
-                        <input
-                          type="radio"
-                          name="reportStatus"
-                          value="draft"
-                          checked={report.status === 'draft'}
-                          onChange={() => setReport({ ...report, status: 'draft' })}
-                          className="text-neutral-900"
-                        />
-                        <span>Draft (Masih dalam proses pengisian)</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer font-medium">
-                        <input
-                          type="radio"
-                          name="reportStatus"
-                          value="final"
-                          checked={report.status === 'final'}
-                          onChange={() => setReport({ ...report, status: 'final' })}
-                          className="text-neutral-900"
-                        />
-                        <span className="font-bold text-emerald-700">Final (Siap Ditinjau Atasan)</span>
-                      </label>
-                    </div>
-                  </div>
+          {activeTab === 'executive_summary' && (
+            <SectionExecutiveSummary
+              attendanceAvg={attendanceAvg}
+              totalAyat={quranAggs.totalAyat}
+              totalZiyadah={quranAggs.totalZiyadah}
+              totalMurajaah={quranAggs.totalMurajaah}
+              mutabaahAvg={mutabaahAvg}
+              activeStudentsCount={activeStudentsCount}
+              students={students}
+              quranList={weeklyQuran}
+              highlights={formData.executive_summary.highlights}
+              onHighlightsChange={(hl) =>
+                updateSection('executive_summary', (prev) => ({ ...prev, highlights: hl }))
+              }
+              onAutoSuggestHighlights={handleAutoSuggestHighlights}
+              readOnly={readOnly}
+            />
+          )}
 
-                  <div>
-                    <label className="font-bold text-neutral-700 block mb-1">
-                      Kendala Pekan Ini (Slide 9)
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={report.kendala || ''}
-                      onChange={(e) => setReport({ ...report, kendala: e.target.value })}
-                      placeholder="Tuliskan kendala teknis, operasional, atau keasramaan yang dihadapi..."
-                      className="w-full rounded-lg border border-neutral-200 p-2.5 text-xs text-neutral-900 focus:outline-none focus:border-neutral-900"
-                    />
-                  </div>
+          {activeTab === 'mutabaah' && (
+            <SectionMutabaah
+              students={students}
+              mutabaahList={weeklyMutabaah}
+              mutabaahAvg={mutabaahAvg}
+              catatanEvaluasi={formData.mutabaah.catatan_evaluasi}
+              onCatatanChange={(catatan) =>
+                updateSection('mutabaah', () => ({ catatan_evaluasi: catatan }))
+              }
+              readOnly={readOnly}
+            />
+          )}
 
-                  <div>
-                    <label className="font-bold text-neutral-700 block mb-1">
-                      Rencana Pekan Depan (Slide 9)
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={report.rencana_pekan_depan || ''}
-                      onChange={(e) => setReport({ ...report, rencana_pekan_depan: e.target.value })}
-                      placeholder="Tuliskan target prioritas dan rencana kegiatan pekan berikutnya..."
-                      className="w-full rounded-lg border border-neutral-200 p-2.5 text-xs text-neutral-900 focus:outline-none focus:border-neutral-900"
-                    />
-                  </div>
+          {activeTab === 'quran' && (
+            <SectionQuran
+              students={students}
+              quranList={weeklyQuran}
+              totalZiyadah={quranAggs.totalZiyadah}
+              totalMurajaah={quranAggs.totalMurajaah}
+              totalAyat={quranAggs.totalAyat}
+              catatanEvaluasi={formData.quran.catatan_evaluasi}
+              onCatatanChange={(catatan) =>
+                updateSection('quran', (prev) => ({ ...prev, catatan_evaluasi: catatan }))
+              }
+              readOnly={readOnly}
+            />
+          )}
 
-                  <div>
-                    <label className="font-bold text-neutral-700 block mb-1">
-                      Catatan Umum / Kesimpulan (Slide 9)
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={report.catatan_umum || ''}
-                      onChange={(e) => setReport({ ...report, catatan_umum: e.target.value })}
-                      placeholder="Tuliskan kesimpulan menyeluruh tentang progres santri dan tim pengajar..."
-                      className="w-full rounded-lg border border-neutral-200 p-2.5 text-xs text-neutral-900 focus:outline-none focus:border-neutral-900"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
+          {activeTab === 'tahfidz_kualitas' && (
+            <SectionTahfidzKualitas
+              students={students}
+              submissions={weeklySubmissions}
+              attentionPoint={formData.tahfidz_kualitas.attention_point}
+              onAttentionPointChange={(pt) =>
+                updateSection('tahfidz_kualitas', (prev) => ({ ...prev, attention_point: pt }))
+              }
+              catatanPerkembangan={formData.tahfidz_kualitas.catatan_perkembangan}
+              onCatatanPerkembanganChange={(sId, note) =>
+                updateSection('tahfidz_kualitas', (prev) => ({
+                  ...prev,
+                  catatan_perkembangan: { ...prev.catatan_perkembangan, [sId]: note },
+                }))
+              }
+              readOnly={readOnly}
+            />
+          )}
 
-            {/* TAB 2: KEMAJUAN PEKANAN */}
-            {activeTab === 'progress' && (
-              <div className="space-y-5">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 pb-3">
-                  <div>
-                    <h2 className="text-sm font-bold text-neutral-900">
-                      Slide 2 — Laporan Kemajuan Pekanan
-                    </h2>
-                    <p className="text-xs text-neutral-500">
-                      Mencatat daftar program/kegiatan, status pencapaian, dan Rencana Perbaikan Tindak Lanjut (RPTL).
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCopyPrevWeekProgress}
-                      disabled={savingTab === 'progress'}
-                      className="text-xs font-semibold gap-1.5"
-                      title="Salin item proses dari pekan lalu"
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                      <span>Salin dari Pekan Lalu</span>
-                    </Button>
-                    <Button
-                      onClick={handleSaveProgress}
-                      disabled={savingTab === 'progress'}
-                      className="bg-neutral-900 text-white hover:bg-neutral-800 text-xs font-bold gap-1.5"
-                    >
-                      <Save className="h-4 w-4" />
-                      <span>{savingTab === 'progress' ? 'Menyimpan...' : 'Simpan Kemajuan'}</span>
-                    </Button>
-                  </div>
-                </div>
+          {activeTab === 'arabic_speaking' && (
+            <SectionArabicSpeaking
+              data={formData.arabic_speaking}
+              onChange={(data) => updateSection('arabic_speaking', () => data)}
+              students={students}
+              currentPekan={currentPekan}
+              readOnly={readOnly}
+            />
+          )}
 
-                <div className="space-y-3">
-                  {progressItems.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="p-3.5 rounded-xl border border-neutral-200 bg-neutral-50/50 space-y-2.5 text-xs"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-bold text-neutral-600">Item #{idx + 1}</span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            disabled={idx === 0}
-                            onClick={() => {
-                              const copy = [...progressItems]
-                              const temp = copy[idx - 1]
-                              copy[idx - 1] = copy[idx]
-                              copy[idx] = temp
-                              setProgressItems(copy)
-                            }}
-                            className="p-1 text-neutral-400 hover:text-neutral-700 disabled:opacity-30"
-                            title="Pindah ke Atas"
-                          >
-                            <ArrowUp className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={idx === progressItems.length - 1}
-                            onClick={() => {
-                              const copy = [...progressItems]
-                              const temp = copy[idx + 1]
-                              copy[idx + 1] = copy[idx]
-                              copy[idx] = temp
-                              setProgressItems(copy)
-                            }}
-                            className="p-1 text-neutral-400 hover:text-neutral-700 disabled:opacity-30"
-                            title="Pindah ke Bawah"
-                          >
-                            <ArrowDown className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const copy = progressItems.filter((_, i) => i !== idx)
-                              setProgressItems(copy)
-                            }}
-                            className="p-1 text-rose-500 hover:text-rose-700 ml-1"
-                            title="Hapus Item"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
+          {activeTab === 'program_activities' && (
+            <SectionProgramActivities
+              data={formData.program_activities}
+              onChange={(data) => updateSection('program_activities', () => data)}
+              operationalActivities={weeklyActivities}
+              currentPekan={currentPekan}
+              readOnly={readOnly}
+            />
+          )}
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div className="sm:col-span-2">
-                          <label className="font-semibold text-neutral-700 block mb-1">Kegiatan / Program</label>
-                          <input
-                            type="text"
-                            value={item.kegiatan}
-                            onChange={(e) => {
-                              const copy = [...progressItems]
-                              copy[idx].kegiatan = e.target.value
-                              setProgressItems(copy)
-                            }}
-                            placeholder="Misal: Pendaftaran visa santri / Halaqah tahfidz..."
-                            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="font-semibold text-neutral-700 block mb-1">Status Pencapaian</label>
-                          <select
-                            value={item.status}
-                            onChange={(e) => {
-                              const copy = [...progressItems]
-                              copy[idx].status = e.target.value as any
-                              setProgressItems(copy)
-                            }}
-                            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                          >
-                            <option value="rencana">Rencana</option>
-                            <option value="proses">Proses</option>
-                            <option value="selesai">Selesai</option>
-                            <option value="tertunda">Tertunda</option>
-                          </select>
-                        </div>
-                      </div>
+          {activeTab === 'documentation' && (
+            <SectionDocumentation
+              reportId={currentReportId}
+              data={formData.documentation}
+              onChange={(data) => updateSection('documentation', () => data)}
+              readOnly={readOnly}
+            />
+          )}
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="font-semibold text-neutral-700 block mb-1">Hasil Kegiatan</label>
-                          <input
-                            type="text"
-                            value={item.hasil || ''}
-                            onChange={(e) => {
-                              const copy = [...progressItems]
-                              copy[idx].hasil = e.target.value
-                              setProgressItems(copy)
-                            }}
-                            placeholder="Capaian yang diperoleh..."
-                            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="font-semibold text-neutral-700 block mb-1">
-                            RPTL (Rencana Perbaikan Tindak Lanjut)
-                          </label>
-                          <input
-                            type="text"
-                            value={item.rptl || ''}
-                            onChange={(e) => {
-                              const copy = [...progressItems]
-                              copy[idx].rptl = e.target.value
-                              setProgressItems(copy)
-                            }}
-                            placeholder="Langkah perbaikan berikutnya..."
-                            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+          {activeTab === 'kendala' && (
+            <SectionKendala
+              data={formData.kendala}
+              onChange={(data) => updateSection('kendala', () => data)}
+              readOnly={readOnly}
+            />
+          )}
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setProgressItems([
-                        ...progressItems,
-                        {
-                          report_id: report.id || 0,
-                          urutan: progressItems.length + 1,
-                          kegiatan: '',
-                          status: 'proses',
-                          hasil: '',
-                          rptl: '',
-                        },
-                      ])
-                    }}
-                    className="w-full py-2.5 border-dashed border-neutral-300 text-neutral-600 hover:text-neutral-900 text-xs font-semibold gap-1.5"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Tambah Baris Kemajuan</span>
-                  </Button>
-                </div>
-              </div>
-            )}
+          {activeTab === 'fokus_pekan_depan' && (
+            <SectionFokusBerikutnya
+              data={formData.fokus_pekan_depan}
+              onChange={(data) => updateSection('fokus_pekan_depan', () => data)}
+              readOnly={readOnly}
+            />
+          )}
+        </div>
+      )}
 
-            {/* TAB 3: EVALUASI SISWA BERMASALAH */}
-            {activeTab === 'issues' && (
-              <div className="space-y-5">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 pb-3">
-                  <div>
-                    <h2 className="text-sm font-bold text-neutral-900">
-                      Slide 3 — Laporan Evaluasi Khusus Siswa
-                    </h2>
-                    <p className="text-xs text-neutral-500">
-                      Catatan internal penanganan kendala kedisiplinan, akademik, atau kesehatan.
-                    </p>
-                  </div>
-                  <Button
-                    onClick={handleSaveIssues}
-                    disabled={savingTab === 'issues'}
-                    className="bg-neutral-900 text-white hover:bg-neutral-800 text-xs font-bold gap-1.5"
-                  >
-                    <Save className="h-4 w-4" />
-                    <span>{savingTab === 'issues' ? 'Menyimpan...' : 'Simpan Kasus'}</span>
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
-                  {studentIssues.map((issue, idx) => (
-                    <div
-                      key={idx}
-                      className="p-3.5 rounded-xl border border-neutral-200 bg-neutral-50/50 space-y-2.5 text-xs"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-bold text-neutral-600">Kasus #{idx + 1}</span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const copy = studentIssues.filter((_, i) => i !== idx)
-                              setStudentIssues(copy)
-                            }}
-                            className="p-1 text-rose-500 hover:text-rose-700"
-                            title="Hapus Kasus"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                          <label className="font-semibold text-neutral-700 block mb-1">Nama Siswa / Guru</label>
-                          <select
-                            value={issue.student_id ? String(issue.student_id) : 'other'}
-                            onChange={(e) => {
-                              const copy = [...studentIssues]
-                              if (e.target.value === 'other') {
-                                copy[idx].student_id = null
-                              } else {
-                                copy[idx].student_id = Number(e.target.value)
-                                copy[idx].nama_lain = null
-                              }
-                              setStudentIssues(copy)
-                            }}
-                            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                          >
-                            <option value="other">Nama Lain / Guru</option>
-                            {students.map((s) => (
-                              <option key={s.id} value={s.id}>
-                                {s.nama}
-                              </option>
-                            ))}
-                          </select>
-                          {!issue.student_id && (
-                            <input
-                              type="text"
-                              value={issue.nama_lain || ''}
-                              onChange={(e) => {
-                                const copy = [...studentIssues]
-                                copy[idx].nama_lain = e.target.value
-                                setStudentIssues(copy)
-                              }}
-                              placeholder="Tuliskan nama lengkap..."
-                              className="mt-1.5 w-full rounded-md border border-neutral-200 px-2.5 py-1 text-xs text-neutral-900 bg-white"
-                            />
-                          )}
-                        </div>
-
-                        <div>
-                          <label className="font-semibold text-neutral-700 block mb-1">Konteks / Kelas</label>
-                          <input
-                            type="text"
-                            value={issue.konteks || ''}
-                            onChange={(e) => {
-                              const copy = [...studentIssues]
-                              copy[idx].konteks = e.target.value
-                              setStudentIssues(copy)
-                            }}
-                            placeholder="Misal: KBM Pagi / Asrama / Tahfidz..."
-                            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="font-semibold text-neutral-700 block mb-1">Permasalahan</label>
-                          <input
-                            type="text"
-                            value={issue.masalah}
-                            onChange={(e) => {
-                              const copy = [...studentIssues]
-                              copy[idx].masalah = e.target.value
-                              setStudentIssues(copy)
-                            }}
-                            placeholder="Uraian singkat masalah..."
-                            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="font-semibold text-neutral-700 block mb-1">Penanganan / Tindakan</label>
-                          <input
-                            type="text"
-                            value={issue.penanganan || ''}
-                            onChange={(e) => {
-                              const copy = [...studentIssues]
-                              copy[idx].penanganan = e.target.value
-                              setStudentIssues(copy)
-                            }}
-                            placeholder="Tindakan yang telah dilakukan..."
-                            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="font-semibold text-neutral-700 block mb-1">Hasil Penanganan</label>
-                          <input
-                            type="text"
-                            value={issue.hasil || ''}
-                            onChange={(e) => {
-                              const copy = [...studentIssues]
-                              copy[idx].hasil = e.target.value
-                              setStudentIssues(copy)
-                            }}
-                            placeholder="Kondisi terkini / hasil penanganan..."
-                            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setStudentIssues([
-                        ...studentIssues,
-                        {
-                          report_id: report.id || 0,
-                          urutan: studentIssues.length + 1,
-                          student_id: students[0]?.id || null,
-                          masalah: '',
-                          penanganan: '',
-                          hasil: '',
-                        },
-                      ])
-                    }}
-                    className="w-full py-2.5 border-dashed border-neutral-300 text-neutral-600 hover:text-neutral-900 text-xs font-semibold gap-1.5"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Tambah Kasus Siswa</span>
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 4: JURNAL GURU (15 KEGIATAN) */}
-            {activeTab === 'journal' && (
-              <div className="space-y-5">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 pb-3">
-                  <div>
-                    <h2 className="text-sm font-bold text-neutral-900">
-                      Slide 4 — Jurnal Guru (15 Aktivitas Pokok)
-                    </h2>
-                    <p className="text-xs text-neutral-500">
-                      Verifikasi keterlaksanaan tugas pendampingan guru selama sepekan.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const map: Record<number, { status: 'completed' | 'partial' | 'not_done'; catatan: string }> = {}
-                        journalActs.forEach((a) => {
-                          map[a.id] = { status: 'completed', catatan: journalRecords[a.id]?.catatan || '' }
-                        })
-                        setJournalRecords(map)
-                      }}
-                      className="text-xs font-semibold"
-                    >
-                      Set Semua Terlaksana
-                    </Button>
-                    <Button
-                      onClick={handleSaveJournal}
-                      disabled={savingTab === 'journal'}
-                      className="bg-neutral-900 text-white hover:bg-neutral-800 text-xs font-bold gap-1.5"
-                    >
-                      <Save className="h-4 w-4" />
-                      <span>{savingTab === 'journal' ? 'Menyimpan...' : 'Simpan Jurnal'}</span>
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="border border-neutral-200 rounded-xl overflow-hidden text-xs">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-neutral-100 border-b border-neutral-200 font-bold text-neutral-800">
-                        <th className="py-2.5 px-3 w-12 text-center">No</th>
-                        <th className="py-2.5 px-3">Kegiatan Guru</th>
-                        <th className="py-2.5 px-3 w-44">Status Keterlaksanaan</th>
-                        <th className="py-2.5 px-3">Catatan / Keterangan</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-neutral-200">
-                      {journalActs.map((act, idx) => {
-                        const rec = journalRecords[act.id] || { status: 'completed', catatan: '' }
-
-                        return (
-                          <tr key={act.id} className="hover:bg-neutral-50/50">
-                            <td className="py-2.5 px-3 text-center text-neutral-500 font-mono">
-                              {idx + 1}
-                            </td>
-                            <td className="py-2.5 px-3 font-semibold text-neutral-900">
-                              {act.nama}
-                            </td>
-                            <td className="py-2 px-3">
-                              <select
-                                value={rec.status}
-                                onChange={(e) => {
-                                  setJournalRecords({
-                                    ...journalRecords,
-                                    [act.id]: {
-                                      ...rec,
-                                      status: e.target.value as any,
-                                    },
-                                  })
-                                }}
-                                className={`w-full rounded-md border px-2 py-1 text-xs font-semibold ${
-                                  rec.status === 'completed'
-                                    ? 'bg-emerald-50 text-emerald-950 border-emerald-300'
-                                    : rec.status === 'partial'
-                                    ? 'bg-amber-50 text-amber-950 border-amber-300'
-                                    : 'bg-rose-50 text-rose-950 border-rose-300'
-                                }`}
-                              >
-                                <option value="completed">Completed (Terlaksana)</option>
-                                <option value="partial">Partial (Sebagian)</option>
-                                <option value="not_done">Not Done (Tidak)</option>
-                              </select>
-                            </td>
-                            <td className="py-2 px-3">
-                              <input
-                                type="text"
-                                value={rec.catatan || ''}
-                                onChange={(e) => {
-                                  setJournalRecords({
-                                    ...journalRecords,
-                                    [act.id]: {
-                                      ...rec,
-                                      catatan: e.target.value,
-                                    },
-                                  })
-                                }}
-                                placeholder="Catatan opsional..."
-                                className="w-full rounded-md border border-neutral-200 px-2 py-1 text-xs text-neutral-900 bg-white"
-                              />
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 5: POSTINGAN SOSIAL MEDIA */}
-            {activeTab === 'sosmed' && (
-              <div className="space-y-5">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 pb-3">
-                  <div>
-                    <h2 className="text-sm font-bold text-neutral-900">
-                      Slide 7 — Laporan Publikasi & Postingan Sosmed
-                    </h2>
-                    <p className="text-xs text-neutral-500">
-                      Dokumentasi publikasi konten di Instagram, YouTube, atau portal sekolah.
-                    </p>
-                  </div>
-                  <Button
-                    onClick={handleSaveSosmed}
-                    disabled={savingTab === 'sosmed'}
-                    className="bg-neutral-900 text-white hover:bg-neutral-800 text-xs font-bold gap-1.5"
-                  >
-                    <Save className="h-4 w-4" />
-                    <span>{savingTab === 'sosmed' ? 'Menyimpan...' : 'Simpan Sosmed'}</span>
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
-                  {sosmedItems.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="p-3.5 rounded-xl border border-neutral-200 bg-neutral-50/50 space-y-2.5 text-xs"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-bold text-neutral-600">Postingan #{idx + 1}</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const copy = sosmedItems.filter((_, i) => i !== idx)
-                            setSosmedItems(copy)
-                          }}
-                          className="p-1 text-rose-500 hover:text-rose-700"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                          <label className="font-semibold text-neutral-700 block mb-1">Kegiatan / Judul Konten</label>
-                          <input
-                            type="text"
-                            value={item.kegiatan}
-                            onChange={(e) => {
-                              const copy = [...sosmedItems]
-                              copy[idx].kegiatan = e.target.value
-                              setSosmedItems(copy)
-                            }}
-                            placeholder="Misal: Video reel setoran di Raudhah..."
-                            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="font-semibold text-neutral-700 block mb-1">Progress Publikasi</label>
-                          <input
-                            type="text"
-                            value={item.progress || ''}
-                            onChange={(e) => {
-                              const copy = [...sosmedItems]
-                              copy[idx].progress = e.target.value
-                              setSosmedItems(copy)
-                            }}
-                            placeholder="Misal: Sudah tayang di IG @idn..."
-                            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="font-semibold text-neutral-700 block mb-1">Keterangan / Link</label>
-                          <input
-                            type="text"
-                            value={item.keterangan || ''}
-                            onChange={(e) => {
-                              const copy = [...sosmedItems]
-                              copy[idx].keterangan = e.target.value
-                              setSosmedItems(copy)
-                            }}
-                            placeholder="URL postingan atau catatan..."
-                            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSosmedItems([
-                        ...sosmedItems,
-                        {
-                          report_id: report.id || 0,
-                          urutan: sosmedItems.length + 1,
-                          kegiatan: '',
-                          progress: 'Sudah tayang',
-                          keterangan: '',
-                        },
-                      ])
-                    }}
-                    className="w-full py-2.5 border-dashed border-neutral-300 text-neutral-600 hover:text-neutral-900 text-xs font-semibold gap-1.5"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Tambah Baris Sosmed</span>
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 6: BUKU KAS UMUM (SLIDE 8) */}
-            {activeTab === 'finance' && (
-              <div className="space-y-6">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 pb-3">
-                  <div>
-                    <h2 className="text-sm font-bold text-neutral-900">
-                      Slide 8 — Buku Kas Umum & Keuangan Berjalan
-                    </h2>
-                    <p className="text-xs text-neutral-500">
-                      Buku kas mandiri sejak awal program. Saldo berjalan dihitung otomatis secara kumulatif.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex rounded-lg bg-neutral-100 p-0.5 border border-neutral-200 text-xs font-semibold">
-                      <button
-                        type="button"
-                        onClick={() => setFinanceGroup('santri')}
-                        className={`px-3 py-1 rounded-md transition-all ${
-                          financeGroup === 'santri'
-                            ? 'bg-white text-neutral-900 shadow-2xs font-bold'
-                            : 'text-neutral-500 hover:text-neutral-900'
-                        }`}
-                      >
-                        Kelompok Santri
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFinanceGroup('koordinator')}
-                        className={`px-3 py-1 rounded-md transition-all ${
-                          financeGroup === 'koordinator'
-                            ? 'bg-white text-neutral-900 shadow-2xs font-bold'
-                            : 'text-neutral-500 hover:text-neutral-900'
-                        }`}
-                      >
-                        Kelompok Koordinator
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Form Input Transaksi Baru */}
-                <form
-                  onSubmit={handleAddKas}
-                  className="p-4 rounded-xl border border-neutral-200 bg-neutral-50/70 space-y-3 text-xs"
-                >
-                  <div className="font-bold text-neutral-800 flex items-center justify-between">
-                    <span>Tambah Transaksi Kas ({financeGroup.toUpperCase()})</span>
-                    <span className="text-[11px] font-normal text-neutral-500">
-                      Total Saldo Berjalan:{' '}
-                      <b
-                        className={
-                          totalSaldoGroup < 0 ? 'text-rose-600 font-bold' : 'text-emerald-700 font-bold'
-                        }
-                      >
-                        {formatRupiah(totalSaldoGroup)}
-                      </b>
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    <div>
-                      <label className="font-semibold text-neutral-700 block mb-1">Tanggal</label>
-                      <input
-                        type="date"
-                        value={newKas.tanggal}
-                        onChange={(e) => setNewKas({ ...newKas, tanggal: e.target.value })}
-                        className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                        required
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="font-semibold text-neutral-700 block mb-1">Kebutuhan / Uraian</label>
-                      <input
-                        type="text"
-                        value={newKas.kebutuhan}
-                        onChange={(e) => setNewKas({ ...newKas, kebutuhan: e.target.value })}
-                        placeholder="Misal: Uang Masuk / Tiket Pesawat / Sewa Apartemen..."
-                        className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="font-semibold text-neutral-700 block mb-1">Kategori</label>
-                      <select
-                        value={newKas.kategori}
-                        onChange={(e) => setNewKas({ ...newKas, kategori: e.target.value as any })}
-                        className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                      >
-                        <option value="keberangkatan">Keberangkatan</option>
-                        <option value="akomodasi">Akomodasi</option>
-                        <option value="operasional">Operasional</option>
-                        <option value="pendidikan">Pendidikan</option>
-                        <option value="lainnya">Lainnya</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    <div>
-                      <label className="font-semibold text-neutral-700 block mb-1">Volume & Satuan</label>
-                      <div className="flex gap-1.5">
-                        <input
-                          type="number"
-                          step="any"
-                          value={newKas.volume}
-                          onChange={(e) => setNewKas({ ...newKas, volume: Number(e.target.value) })}
-                          className="w-20 rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                          required
-                        />
-                        <input
-                          type="text"
-                          value={newKas.satuan}
-                          onChange={(e) => setNewKas({ ...newKas, satuan: e.target.value })}
-                          placeholder="pax / bln"
-                          className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="font-semibold text-neutral-700 block mb-1">Harga Satuan (Rp)</label>
-                      <input
-                        type="number"
-                        value={newKas.harga}
-                        onChange={(e) => setNewKas({ ...newKas, harga: Number(e.target.value) })}
-                        placeholder="Contoh: 15000000"
-                        className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="font-semibold text-neutral-700 block mb-1">Arah Arus Kas</label>
-                      <select
-                        value={newKas.arah}
-                        onChange={(e) => setNewKas({ ...newKas, arah: e.target.value as any })}
-                        className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-900 bg-white font-bold"
-                      >
-                        <option value="masuk" className="text-emerald-700 font-bold">
-                          Masuk (Kredit)
-                        </option>
-                        <option value="keluar" className="text-rose-700 font-bold">
-                          Keluar (Debit)
-                        </option>
-                      </select>
-                    </div>
-
-                    <div className="flex items-end">
-                      <Button
-                        type="submit"
-                        disabled={savingTab === 'finance'}
-                        className="w-full bg-neutral-900 text-white hover:bg-neutral-800 text-xs font-bold gap-1.5"
-                      >
-                        <Plus className="h-4 w-4" />
-                        <span>Tambah Transaksi</span>
-                      </Button>
-                    </div>
-                  </div>
-                </form>
-
-                {/* Tabel Kas Berjalan */}
-                <div className="border border-neutral-200 rounded-xl overflow-hidden text-xs">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-neutral-100 border-b border-neutral-200 font-bold text-neutral-800 text-[11px]">
-                        <th className="py-2.5 px-3 w-10 text-center">No</th>
-                        <th className="py-2.5 px-2.5">Tanggal</th>
-                        <th className="py-2.5 px-3">Kebutuhan / Uraian</th>
-                        <th className="py-2.5 px-2.5 text-center">Volume</th>
-                        <th className="py-2.5 px-3 text-right">Harga</th>
-                        <th className="py-2.5 px-3 text-right text-emerald-800">Kredit (Masuk)</th>
-                        <th className="py-2.5 px-3 text-right text-rose-800">Debit (Keluar)</th>
-                        <th className="py-2.5 px-3 text-right">Sisa Saldo</th>
-                        <th className="py-2.5 px-2 text-center w-12">Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-neutral-200">
-                      {filteredKas.length === 0 ? (
-                        <tr>
-                          <td colSpan={9} className="py-8 text-center text-neutral-400 italic">
-                            Belum ada transaksi kas untuk kelompok {financeGroup}.
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredKas.map((item, idx) => (
-                          <tr key={item.id || idx} className="hover:bg-neutral-50/50">
-                            <td className="py-2 px-3 text-center text-neutral-500 font-mono">
-                              {idx + 1}
-                            </td>
-                            <td className="py-2 px-2.5 font-medium text-neutral-700 whitespace-nowrap">
-                              {item.tanggal}
-                            </td>
-                            <td className="py-2 px-3 font-semibold text-neutral-900">
-                              <div>{item.kebutuhan}</div>
-                              <div className="text-[10px] font-normal text-neutral-400 capitalize">
-                                Kategori: {item.kategori}
-                              </div>
-                            </td>
-                            <td className="py-2 px-2.5 text-center text-neutral-700">
-                              {item.volume} {item.satuan}
-                            </td>
-                            <td className="py-2 px-3 text-right font-mono text-neutral-800">
-                              {formatRupiah(item.harga)}
-                            </td>
-                            <td className="py-2 px-3 text-right font-mono font-semibold text-emerald-700">
-                              {item.kredit > 0 ? formatRupiah(item.kredit) : '—'}
-                            </td>
-                            <td className="py-2 px-3 text-right font-mono font-semibold text-rose-700">
-                              {item.debit > 0 ? formatRupiah(item.debit) : '—'}
-                            </td>
-                            <td
-                              className={`py-2 px-3 text-right font-mono font-bold ${
-                                item.sisa_saldo < 0 ? 'text-rose-600' : 'text-neutral-900'
-                              }`}
-                            >
-                              {formatRupiah(item.sisa_saldo)}
-                            </td>
-                            <td className="py-2 px-2 text-center">
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteKas(item.id)}
-                                className="p-1 text-neutral-400 hover:text-rose-600 transition-colors"
-                                title="Hapus Transaksi"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                    {filteredKas.length > 0 && (
-                      <tfoot>
-                        <tr className="bg-neutral-100/80 font-bold border-t-2 border-neutral-300 text-neutral-900">
-                          <td colSpan={7} className="py-2.5 px-3 text-right uppercase tracking-wider text-[10px]">
-                            Saldo Akhir {financeGroup}:
-                          </td>
-                          <td
-                            className={`py-2.5 px-3 text-right font-mono text-sm ${
-                              totalSaldoGroup < 0 ? 'text-rose-600' : 'text-neutral-900'
-                            }`}
-                          >
-                            {formatRupiah(totalSaldoGroup)}
-                          </td>
-                          <td />
-                        </tr>
-                      </tfoot>
-                    )}
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </main>
+      {/* 4. Completeness Validation Modal */}
+      <ValidationModal
+        isOpen={isValidationOpen}
+        onClose={() => setIsValidationOpen(false)}
+        isValid={validationResult.isValid}
+        status={validationResult.status}
+        issues={validationResult.issues}
+        completedCount={validationResult.completedSectionsCount}
+        onViewSlides={() => navigate(`/report/weekly-progress?pekan=${currentPekan}`)}
+      />
     </div>
   )
 }
-
-export default WeeklyReportFormPage
