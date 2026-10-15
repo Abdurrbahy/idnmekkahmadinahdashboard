@@ -116,7 +116,10 @@ export interface Submission {
   subject?: Subject
   quran_details?: QuranSubmissionDetail[]
   quiz_details?: QuizSubmissionDetail[]
+  rubrik_penilaian?: import('./quranRubric').QuranRubricAssessment | null
 }
+
+export * from './quranRubric'
 
 export interface QuranSubmissionDetail {
   id?: number

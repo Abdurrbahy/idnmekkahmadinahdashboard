@@ -27,6 +27,9 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { formatUpdatedTime, isHariAktif } from '@/lib/dateUtils'
 import { KitabBabModal } from './KitabBabModal'
+import { QuranRubricScoring } from './QuranRubricScoring'
+import type { AspectScoreMap, KelancaranStatus, QuranRubricAssessment } from '@/types/quranRubric'
+import { calculateQuranRubric, buildQuranRubricAssessment } from '@/lib/quranRubricCalculator'
 
 interface QuranSubmissionSectionProps {
   selectedDate: string
@@ -82,6 +85,11 @@ export const QuranSubmissionSection: React.FC<QuranSubmissionSectionProps> = ({
   const [status, setStatus] = useState<'lancar' | 'kurang_lancar' | 'mengulang'>('lancar')
   const [nilai, setNilai] = useState<string>('95')
   const [catatan, setCatatan] = useState<string>('')
+
+  // Quran Rubric Assessment States
+  const [rubricScores, setRubricScores] = useState<AspectScoreMap>({})
+  const [overrideStatus, setOverrideStatus] = useState<KelancaranStatus | null>(null)
+  const [overrideReason, setOverrideReason] = useState<string>('')
 
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -211,6 +219,21 @@ export const QuranSubmissionSection: React.FC<QuranSubmissionSectionProps> = ({
       setEditingQuizDetailId(undefined)
     }
 
+    if (sub.rubrik_penilaian) {
+      setRubricScores(sub.rubrik_penilaian.skor || {})
+      if (sub.rubrik_penilaian.is_override) {
+        setOverrideStatus(sub.rubrik_penilaian.status_final)
+        setOverrideReason(sub.rubrik_penilaian.override_alasan || '')
+      } else {
+        setOverrideStatus(null)
+        setOverrideReason('')
+      }
+    } else {
+      setRubricScores({})
+      setOverrideStatus(null)
+      setOverrideReason('')
+    }
+
     setErrorMessage(null)
     window.scrollTo({ top: 300, behavior: 'smooth' })
   }
@@ -219,6 +242,9 @@ export const QuranSubmissionSection: React.FC<QuranSubmissionSectionProps> = ({
     setEditingId(null)
     setEditingDetailId(undefined)
     setEditingQuizDetailId(undefined)
+    setRubricScores({})
+    setOverrideStatus(null)
+    setOverrideReason('')
     setCatatan('')
     setErrorMessage(null)
   }
@@ -260,10 +286,37 @@ export const QuranSubmissionSection: React.FC<QuranSubmissionSectionProps> = ({
     let finalCapaian = Number(customCapaian) || 1
     let finalSatuan = satuan
     let finalNilai: number | null = nilai ? Number(nilai) : null
+    let finalStatus: 'lancar' | 'kurang_lancar' | 'mengulang' = status
+    let rubrikPayload: QuranRubricAssessment | null = null
 
     if (activeMode === 'quran') {
       finalCapaian = calculatedAyat
       finalSatuan = 'ayat'
+
+      // Validasi rubrik 5 aspek
+      const rubricResult = calculateQuranRubric(rubricScores)
+      if (!rubricResult.isComplete) {
+        setErrorMessage('Lengkapi penilaian seluruh aspek (5 aspek) untuk menghitung nilai akhir.')
+        setSubmitting(false)
+        return
+      }
+
+      // Validasi override alasan
+      if (overrideStatus && !overrideReason.trim()) {
+        setErrorMessage('Wajib mencantumkan alasan pengecualian untuk melakukan override status kelancaran.')
+        setSubmitting(false)
+        return
+      }
+
+      finalNilai = rubricResult.nilaiAkhir
+      finalStatus = (overrideStatus || rubricResult.statusOtomatis || 'lancar') as 'lancar' | 'kurang_lancar' | 'mengulang'
+
+      rubrikPayload = buildQuranRubricAssessment({
+        scores: rubricScores,
+        overrideStatus,
+        overrideReason: overrideReason.trim() || undefined,
+        overrideBy: profile?.nama || profile?.email || 'Ustadz / Penguji',
+      })
     } else if (activeMode === 'kuis') {
       finalCapaian = Number(soalBenar) || 0
       finalSatuan = 'soal'
@@ -276,9 +329,10 @@ export const QuranSubmissionSection: React.FC<QuranSubmissionSectionProps> = ({
       tanggal: selectedDate,
       capaian: finalCapaian,
       satuan: finalSatuan,
-      status,
+      status: finalStatus,
       nilai: finalNilai,
       catatan: catatan.trim() || null,
+      rubrik_penilaian: rubrikPayload,
     }
 
     const quranDetail =
@@ -318,6 +372,9 @@ export const QuranSubmissionSection: React.FC<QuranSubmissionSectionProps> = ({
         const res = await insertSubmission(submissionPayload, quranDetail, quizDetail)
         if (res.success) {
           setCatatan('')
+          setRubricScores({})
+          setOverrideStatus(null)
+          setOverrideReason('')
           onSubmissionsUpdated()
         } else {
           setErrorMessage(res.error || 'Gagal mencatat setoran baru.')
@@ -722,49 +779,64 @@ export const QuranSubmissionSection: React.FC<QuranSubmissionSectionProps> = ({
                       </div>
                     )}
 
-                    {/* D. Status / Kelancaran & Nilai Manual (Hanya untuk quran & jumlah) */}
-                    <div className="grid grid-cols-12 gap-2 items-end">
-                      <div className={activeMode === 'kuis' ? 'col-span-12' : 'col-span-8'}>
-                        <label className="font-semibold text-neutral-700 block mb-1">
-                          {activeMode === 'kuis' ? 'Status Kuis' : 'Kelancaran'}
-                        </label>
-                        <div className="grid grid-cols-3 gap-1">
-                          {statusOptions.map((st) => (
-                            <button
-                              key={st.id}
-                              type="button"
-                              onClick={() => setStatus(st.id)}
-                              className={`h-8 rounded-md text-xs font-semibold transition-all ${
-                                status === st.id
-                                  ? `${st.color} text-white shadow-2xs font-bold`
-                                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-                              }`}
-                            >
-                              {st.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {activeMode !== 'kuis' && (
-                        <div className="col-span-4">
+                    {/* D. Penilaian: Rubrik 5 Aspek (Quran) atau Manual (Kuis/Jumlah) */}
+                    {activeMode === 'quran' ? (
+                      <QuranRubricScoring
+                        scores={rubricScores}
+                        onScoresChange={setRubricScores}
+                        overrideStatus={overrideStatus}
+                        onOverrideStatusChange={setOverrideStatus}
+                        overrideReason={overrideReason}
+                        onOverrideReasonChange={setOverrideReason}
+                        onAppendNote={(note) => {
+                          setCatatan((prev) => (prev.trim() ? `${prev}\n${note}` : note))
+                        }}
+                      />
+                    ) : (
+                      /* D. Status / Kelancaran & Nilai Manual (Hanya untuk non-quran) */
+                      <div className="grid grid-cols-12 gap-2 items-end">
+                        <div className={activeMode === 'kuis' ? 'col-span-12' : 'col-span-8'}>
                           <label className="font-semibold text-neutral-700 block mb-1">
-                            Nilai (0-100)
+                            {activeMode === 'kuis' ? 'Status Kuis' : 'Kelancaran'}
                           </label>
-                          <Input
-                            type="number"
-                            min={0}
-                            max={100}
-                            value={nilai}
-                            onFocus={() => handleNumericFocus(nilai, setNilai)}
-                            onBlur={() => handleNumericBlur(nilai, setNilai, '0')}
-                            onChange={(e) => setNilai(e.target.value)}
-                            placeholder="90"
-                            className="h-8 text-xs font-bold"
-                          />
+                          <div className="grid grid-cols-3 gap-1">
+                            {statusOptions.map((st) => (
+                              <button
+                                key={st.id}
+                                type="button"
+                                onClick={() => setStatus(st.id)}
+                                className={`h-8 rounded-md text-xs font-semibold transition-all ${
+                                  status === st.id
+                                    ? `${st.color} text-white shadow-2xs font-bold`
+                                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                                }`}
+                              >
+                                {st.label}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      )}
-                    </div>
+
+                        {activeMode !== 'kuis' && (
+                          <div className="col-span-4">
+                            <label className="font-semibold text-neutral-700 block mb-1">
+                              Nilai (0-100)
+                            </label>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={nilai}
+                              onFocus={() => handleNumericFocus(nilai, setNilai)}
+                              onBlur={() => handleNumericBlur(nilai, setNilai, '0')}
+                              onChange={(e) => setNilai(e.target.value)}
+                              placeholder="90"
+                              className="h-8 text-xs font-bold"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* E. Catatan Musyrif / Ustadz */}
                     <div>
@@ -774,7 +846,11 @@ export const QuranSubmissionSection: React.FC<QuranSubmissionSectionProps> = ({
                       <Textarea
                         value={catatan}
                         onChange={(e) => setCatatan(e.target.value)}
-                        placeholder="Contoh: Menguasai bab fiil amr dengan baik, perlu latihan i'rob..."
+                        placeholder={
+                          activeMode === 'quran'
+                            ? 'Contoh: Hafalan sudah baik, tetapi masih perlu memperbaiki ketepatan makhraj huruf tertentu dan konsistensi hukum tajwid.'
+                            : "Contoh: Menguasai bab fiil amr dengan baik, perlu latihan i'rob..."
+                        }
                         rows={2}
                         className="text-xs min-h-[56px]"
                       />
@@ -908,7 +984,7 @@ export const QuranSubmissionSection: React.FC<QuranSubmissionSectionProps> = ({
                           }`}
                         >
                           <div className="space-y-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-neutral-900 text-sm">
                                 {student?.nama}
                               </span>
@@ -927,6 +1003,16 @@ export const QuranSubmissionSection: React.FC<QuranSubmissionSectionProps> = ({
                               >
                                 {statusLabel}
                               </Badge>
+                              {sub.rubrik_penilaian?.predikat && (
+                                <Badge variant="outline" className="text-[10px] font-bold bg-amber-50 text-amber-900 border-amber-300">
+                                  Predikat {sub.rubrik_penilaian.predikat}
+                                </Badge>
+                              )}
+                              {sub.rubrik_penilaian?.is_override && (
+                                <Badge variant="outline" className="text-[9px] font-semibold bg-rose-50 text-rose-700 border-rose-200" title={`Alasan: ${sub.rubrik_penilaian.override_alasan || 'Pengecualian'}`}>
+                                  Override
+                                </Badge>
+                              )}
                               {updatedText && (
                                 <span className="text-[10px] text-neutral-400 italic flex items-center gap-0.5">
                                   <Clock className="h-2.5 w-2.5" />
@@ -972,29 +1058,59 @@ export const QuranSubmissionSection: React.FC<QuranSubmissionSectionProps> = ({
                                   quranDetail.ayat_akhir
                                 )
                                 return (
-                                  <div className="text-neutral-700 font-medium flex items-center gap-1.5 flex-wrap">
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-900 border border-purple-200">
-                                      {qInfo.juzLabel}
-                                    </span>
-                                    <span className="bg-neutral-200/70 text-neutral-800 px-1.5 py-0.5 rounded font-mono text-[11px]">
-                                      {ALL_SURAHS.find((s) => s.nomor === quranDetail.surah_awal)?.nama_latin} :{' '}
-                                      {quranDetail.ayat_awal}
-                                    </span>
-                                    <span className="text-neutral-400">s/d</span>
-                                    <span className="bg-neutral-200/70 text-neutral-800 px-1.5 py-0.5 rounded font-mono text-[11px]">
-                                      {ALL_SURAHS.find((s) => s.nomor === quranDetail.surah_akhir)?.nama_latin} :{' '}
-                                      {quranDetail.ayat_akhir}
-                                    </span>
-                                    <span className="font-bold text-neutral-900 ml-1">
-                                      ({sub.capaian} Ayat)
-                                    </span>
-                                    {sub.nilai !== null && sub.nilai !== undefined && (
-                                      <>
-                                        <span className="text-neutral-300">·</span>
-                                        <span className="font-semibold text-neutral-800">
-                                          Nilai: {sub.nilai}
+                                  <div className="space-y-1">
+                                    <div className="text-neutral-700 font-medium flex items-center gap-1.5 flex-wrap">
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-900 border border-purple-200">
+                                        {qInfo.juzLabel}
+                                      </span>
+                                      <span className="bg-neutral-200/70 text-neutral-800 px-1.5 py-0.5 rounded font-mono text-[11px]">
+                                        {ALL_SURAHS.find((s) => s.nomor === quranDetail.surah_awal)?.nama_latin} :{' '}
+                                        {quranDetail.ayat_awal}
+                                      </span>
+                                      <span className="text-neutral-400">s/d</span>
+                                      <span className="bg-neutral-200/70 text-neutral-800 px-1.5 py-0.5 rounded font-mono text-[11px]">
+                                        {ALL_SURAHS.find((s) => s.nomor === quranDetail.surah_akhir)?.nama_latin} :{' '}
+                                        {quranDetail.ayat_akhir}
+                                      </span>
+                                      <span className="font-bold text-neutral-900 ml-1">
+                                        ({sub.capaian} Ayat)
+                                      </span>
+                                      {sub.nilai !== null && sub.nilai !== undefined && (
+                                        <>
+                                          <span className="text-neutral-300">·</span>
+                                          <span className="font-semibold text-neutral-800">
+                                            Nilai: {sub.nilai}
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+
+                                    {/* Rubrik detail chips if present */}
+                                    {sub.rubrik_penilaian && (
+                                      <div className="flex flex-wrap gap-1 text-[10px] pt-0.5">
+                                        <span className="bg-neutral-100/90 text-neutral-600 px-1.5 py-0.5 rounded border border-neutral-200">
+                                          Hafalan: <b className="text-neutral-900">{sub.rubrik_penilaian.skor.hafalan}/4</b>
                                         </span>
-                                      </>
+                                        <span className="bg-neutral-100/90 text-neutral-600 px-1.5 py-0.5 rounded border border-neutral-200">
+                                          Tajwid: <b className="text-neutral-900">{sub.rubrik_penilaian.skor.tajwid}/4</b>
+                                        </span>
+                                        <span className="bg-neutral-100/90 text-neutral-600 px-1.5 py-0.5 rounded border border-neutral-200">
+                                          Makhraj: <b className="text-neutral-900">{sub.rubrik_penilaian.skor.makhraj}/4</b>
+                                        </span>
+                                        <span className="bg-neutral-100/90 text-neutral-600 px-1.5 py-0.5 rounded border border-neutral-200">
+                                          Kelancaran: <b className="text-neutral-900">{sub.rubrik_penilaian.skor.kelancaran}/4</b>
+                                        </span>
+                                        <span className="bg-neutral-100/90 text-neutral-600 px-1.5 py-0.5 rounded border border-neutral-200">
+                                          Waqaf: <b className="text-neutral-900">{sub.rubrik_penilaian.skor.waqaf_ibtida}/4</b>
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    {sub.rubrik_penilaian?.is_override && sub.rubrik_penilaian.override_alasan && (
+                                      <div className="text-[10px] text-amber-800 bg-amber-50/80 border border-amber-200 rounded px-2 py-0.5 mt-0.5">
+                                        <span className="font-semibold">Alasan Override ({sub.rubrik_penilaian.override_by || 'Penguji'}):</span>{' '}
+                                        {sub.rubrik_penilaian.override_alasan}
+                                      </div>
                                     )}
                                   </div>
                                 )

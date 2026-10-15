@@ -389,20 +389,43 @@ export async function insertSubmission(
   if (client) {
     try {
       // 1. Insert into submissions
-      const { data: subData, error: subError } = await client
+      const insertPayload: Record<string, any> = {
+        student_id: submission.student_id,
+        subject_id: submission.subject_id,
+        tanggal: submission.tanggal || todayRiyadh(),
+        capaian: submission.capaian,
+        satuan: submission.satuan,
+        status: submission.status,
+        nilai: submission.nilai !== undefined && submission.nilai !== null ? submission.nilai : null,
+        catatan: submission.catatan || null,
+      }
+      if (submission.rubrik_penilaian !== undefined) {
+        insertPayload.rubrik_penilaian = submission.rubrik_penilaian
+      }
+
+      let { data: subData, error: subError } = await client
         .from('submissions')
-        .insert({
-          student_id: submission.student_id,
-          subject_id: submission.subject_id,
-          tanggal: submission.tanggal || todayRiyadh(),
-          capaian: submission.capaian,
-          satuan: submission.satuan,
-          status: submission.status,
-          nilai: submission.nilai || null,
-          catatan: submission.catatan || null,
-        })
+        .insert(insertPayload)
         .select()
         .single()
+
+      if (subError && insertPayload.rubrik_penilaian) {
+        const isColumnMissing =
+          subError.code === 'PGRST204' ||
+          subError.code === '42703' ||
+          subError.message?.includes('rubrik_penilaian')
+        if (isColumnMissing) {
+          console.warn('Kolom rubrik_penilaian belum ada di database. Menyimpan nilai dan status standar.')
+          delete insertPayload.rubrik_penilaian
+          const retry = await client
+            .from('submissions')
+            .insert(insertPayload)
+            .select()
+            .single()
+          subData = retry.data
+          subError = retry.error
+        }
+      }
 
       if (subError) {
         return { success: false, error: parsePostgresError(subError) }
@@ -475,19 +498,40 @@ export async function updateSubmission(
   if (client) {
     try {
       // 1. Update submissions table
-      const { error: subError } = await client
+      const updatePayload: Record<string, any> = {
+        student_id: submission.student_id,
+        subject_id: submission.subject_id,
+        tanggal: submission.tanggal,
+        capaian: submission.capaian,
+        satuan: submission.satuan,
+        status: submission.status,
+        nilai: submission.nilai !== undefined && submission.nilai !== null ? submission.nilai : null,
+        catatan: submission.catatan || null,
+      }
+      if (submission.rubrik_penilaian !== undefined) {
+        updatePayload.rubrik_penilaian = submission.rubrik_penilaian
+      }
+
+      let { error: subError } = await client
         .from('submissions')
-        .update({
-          student_id: submission.student_id,
-          subject_id: submission.subject_id,
-          tanggal: submission.tanggal,
-          capaian: submission.capaian,
-          satuan: submission.satuan,
-          status: submission.status,
-          nilai: submission.nilai || null,
-          catatan: submission.catatan || null,
-        })
+        .update(updatePayload)
         .eq('id', id)
+
+      if (subError && updatePayload.rubrik_penilaian) {
+        const isColumnMissing =
+          subError.code === 'PGRST204' ||
+          subError.code === '42703' ||
+          subError.message?.includes('rubrik_penilaian')
+        if (isColumnMissing) {
+          console.warn('Kolom rubrik_penilaian belum ada di database. Memperbarui nilai dan status standar.')
+          delete updatePayload.rubrik_penilaian
+          const retry = await client
+            .from('submissions')
+            .update(updatePayload)
+            .eq('id', id)
+          subError = retry.error
+        }
+      }
 
       if (subError) {
         return { success: false, error: parsePostgresError(subError) }
