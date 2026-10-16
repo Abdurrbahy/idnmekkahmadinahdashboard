@@ -22,7 +22,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ hasUnsavedChanges = false 
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
         <Outlet context={{ onToggleSidebar: () => setMobileOpen(true), collapsed, setCollapsed }} />
       </div>
     </div>

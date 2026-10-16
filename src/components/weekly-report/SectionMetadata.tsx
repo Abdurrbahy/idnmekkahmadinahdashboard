@@ -39,7 +39,7 @@ export const SectionMetadata: React.FC<SectionMetadataProps> = ({
         </div>
       </CardHeader>
 
-      <CardContent className="p-5 space-y-4">
+      <CardContent className="p-3.5 sm:p-5 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Nama Laporan */}
           <div className="md:col-span-2">
@@ -136,11 +136,11 @@ export const SectionMetadata: React.FC<SectionMetadataProps> = ({
           </div>
 
           {/* Rentang Tanggal Pekan (Auto) */}
-          <div className="md:col-span-2 p-3 rounded-xl bg-neutral-50 border border-neutral-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="md:col-span-2 p-3 rounded-xl bg-neutral-50 border border-neutral-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs">
             <span className="text-neutral-600 font-medium">
               Rentang Tanggal Pekan (Ahad — Sabtu):
             </span>
-            <span className="font-bold text-neutral-900 font-mono">
+            <span className="font-bold text-neutral-900 font-mono text-xs sm:text-sm">
               {metadata.tanggal_awal} s/d {metadata.tanggal_akhir}
             </span>
           </div>

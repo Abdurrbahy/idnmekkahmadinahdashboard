@@ -73,9 +73,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       )}
 
-      {/* Sidebar Container */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col justify-between border-r border-neutral-200 bg-white transition-all duration-300 ease-in-out lg:sticky lg:h-screen lg:z-30 ${
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col justify-between border-r border-neutral-200 bg-white transition-all duration-300 ease-in-out lg:sticky lg:h-screen lg:z-30 shrink-0 ${
           /* Mobile Drawer */
           mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
         } ${

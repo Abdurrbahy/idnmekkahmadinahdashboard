@@ -52,24 +52,24 @@ export const SectionMutabaah: React.FC<SectionMutabaahProps> = ({
         </div>
       </CardHeader>
 
-      <CardContent className="p-5 space-y-5">
+      <CardContent className="p-3.5 sm:p-5 space-y-4 sm:space-y-5">
         {/* Rata-rata Header Card */}
-        <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200/80 flex flex-wrap items-center justify-between gap-2">
+        <div className="p-3 sm:p-3.5 rounded-xl bg-neutral-50 border border-neutral-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <span className="text-xs text-neutral-500 font-medium">Rata-rata Skor Mutabaah Santri:</span>
             <span className="ml-2 text-base font-black text-neutral-900">
               {mutabaahAvg !== null ? `${mutabaahAvg}%` : 'Belum ada data yang cukup'}
             </span>
           </div>
-          <Badge variant="outline" className="text-xs font-semibold bg-white">
+          <Badge variant="outline" className="text-xs font-semibold bg-white self-start sm:self-auto">
             {activeStudents.length} Santri Aktif
           </Badge>
         </div>
 
         {/* Tabel Capaian Mutabaah Per Santri */}
         <div className="rounded-xl border border-neutral-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
+          <div className="overflow-x-auto scrollbar-thin">
+            <table className="w-full text-xs text-left min-w-[500px]">
               <thead className="bg-neutral-100/80 text-neutral-700 font-bold border-b border-neutral-200">
                 <tr>
                   <th className="py-2.5 px-3 w-12 text-center">No</th>

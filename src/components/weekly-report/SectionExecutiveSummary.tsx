@@ -116,16 +116,16 @@ export const SectionExecutiveSummary: React.FC<SectionExecutiveSummaryProps> = (
         </div>
       </CardHeader>
 
-      <CardContent className="p-5 space-y-6">
+      <CardContent className="p-3.5 sm:p-5 space-y-5 sm:space-y-6">
         {/* 1. KPI Cards (Automated from Operational DB) */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
           {/* Kehadiran */}
-          <div className="p-4 rounded-xl bg-neutral-50/80 border border-neutral-200/80">
-            <div className="flex items-center justify-between text-neutral-500 mb-1.5">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Rata-rata Kehadiran</span>
-              <UserCheck className="h-4 w-4 text-emerald-600" />
+          <div className="p-3 sm:p-4 rounded-xl bg-neutral-50/80 border border-neutral-200/80">
+            <div className="flex items-center justify-between text-neutral-500 mb-1">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Rata-rata Kehadiran</span>
+              <UserCheck className="h-4 w-4 text-emerald-600 shrink-0" />
             </div>
-            <div className="text-2xl font-black text-neutral-900">
+            <div className="text-xl sm:text-2xl font-black text-neutral-900">
               {attendanceAvg !== null ? `${attendanceAvg}%` : '—'}
             </div>
             <p className="text-[10px] text-neutral-400 mt-1">
@@ -134,26 +134,26 @@ export const SectionExecutiveSummary: React.FC<SectionExecutiveSummaryProps> = (
           </div>
 
           {/* Total Ayat */}
-          <div className="p-4 rounded-xl bg-neutral-50/80 border border-neutral-200/80">
-            <div className="flex items-center justify-between text-neutral-500 mb-1.5">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Total Ayat Setoran</span>
-              <BookOpen className="h-4 w-4 text-blue-600" />
+          <div className="p-3 sm:p-4 rounded-xl bg-neutral-50/80 border border-neutral-200/80">
+            <div className="flex items-center justify-between text-neutral-500 mb-1">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Total Ayat Setoran</span>
+              <BookOpen className="h-4 w-4 text-blue-600 shrink-0" />
             </div>
-            <div className="text-2xl font-black text-neutral-900">
+            <div className="text-xl sm:text-2xl font-black text-neutral-900">
               {totalAyat} <span className="text-xs font-medium text-neutral-500">ayat</span>
             </div>
-            <p className="text-[10px] text-neutral-500 mt-1 font-mono">
+            <p className="text-[10px] text-neutral-500 mt-1 font-mono truncate">
               {totalZiyadah} ziyadah · {totalMurajaah} muraja'ah
             </p>
           </div>
 
           {/* Mutabaah */}
-          <div className="p-4 rounded-xl bg-neutral-50/80 border border-neutral-200/80">
-            <div className="flex items-center justify-between text-neutral-500 mb-1.5">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Rata-rata Mutabaah</span>
-              <Sparkles className="h-4 w-4 text-amber-500" />
+          <div className="p-3 sm:p-4 rounded-xl bg-neutral-50/80 border border-neutral-200/80">
+            <div className="flex items-center justify-between text-neutral-500 mb-1">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Rata-rata Mutabaah</span>
+              <Sparkles className="h-4 w-4 text-amber-500 shrink-0" />
             </div>
-            <div className="text-2xl font-black text-neutral-900">
+            <div className="text-xl sm:text-2xl font-black text-neutral-900">
               {mutabaahAvg !== null ? `${mutabaahAvg}%` : '—'}
             </div>
             <p className="text-[10px] text-neutral-400 mt-1">
@@ -162,12 +162,12 @@ export const SectionExecutiveSummary: React.FC<SectionExecutiveSummaryProps> = (
           </div>
 
           {/* Santri Aktif */}
-          <div className="p-4 rounded-xl bg-neutral-50/80 border border-neutral-200/80">
-            <div className="flex items-center justify-between text-neutral-500 mb-1.5">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Santri Aktif</span>
-              <Users className="h-4 w-4 text-purple-600" />
+          <div className="p-3 sm:p-4 rounded-xl bg-neutral-50/80 border border-neutral-200/80">
+            <div className="flex items-center justify-between text-neutral-500 mb-1">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Santri Aktif</span>
+              <Users className="h-4 w-4 text-purple-600 shrink-0" />
             </div>
-            <div className="text-2xl font-black text-neutral-900">
+            <div className="text-xl sm:text-2xl font-black text-neutral-900">
               {activeStudentsCount} <span className="text-xs font-medium text-neutral-500">santri</span>
             </div>
             <p className="text-[10px] text-neutral-400 mt-1">Status santri aktif terdaftar</p>
@@ -175,12 +175,12 @@ export const SectionExecutiveSummary: React.FC<SectionExecutiveSummaryProps> = (
         </div>
 
         {/* 2. Horizontal Stacked Bar Chart (Recharts) */}
-        <div className="p-4 rounded-xl border border-neutral-200/80 bg-neutral-50/40">
-          <div className="flex items-center justify-between mb-3">
+        <div className="p-3 sm:p-4 rounded-xl border border-neutral-200/80 bg-neutral-50/40">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-1">
             <div className="flex items-center gap-2">
-              <BarChart2 className="h-4 w-4 text-neutral-700" />
+              <BarChart2 className="h-4 w-4 text-neutral-700 shrink-0" />
               <h3 className="text-xs font-bold text-neutral-800">
-                Grafik Capaian Ayat per Santri (Ziyadah & Muraja'ah)
+                Grafik Capaian Ayat per Santri (Ziyadah &amp; Muraja'ah)
               </h3>
             </div>
             <span className="text-[10px] text-neutral-400">Pekan Terpilih</span>
@@ -191,20 +191,20 @@ export const SectionExecutiveSummary: React.FC<SectionExecutiveSummaryProps> = (
               Belum ada data setoran santri pada pekan ini.
             </div>
           ) : (
-            <div className="h-64 w-full">
+            <div className="h-72 sm:h-80 w-full overflow-hidden">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={chartData}
                   layout="vertical"
-                  margin={{ top: 5, right: 30, left: 30, bottom: 5 }}
+                  margin={{ top: 5, right: 15, left: 0, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E5E5E5" />
                   <XAxis type="number" textAnchor="end" tick={{ fontSize: 10 }} />
                   <YAxis
                     dataKey="nama"
                     type="category"
-                    tick={{ fontSize: 11, fontWeight: 600 }}
-                    width={80}
+                    tick={{ fontSize: 10, fontWeight: 600 }}
+                    width={65}
                   />
                   <Tooltip
                     formatter={(value: any, name: any) => [
@@ -217,8 +217,8 @@ export const SectionExecutiveSummary: React.FC<SectionExecutiveSummaryProps> = (
                     }}
                   />
                   <Legend
-                    wrapperStyle={{ fontSize: 11, paddingTop: 10 }}
-                    formatter={(val) => (val === 'ziyadah' ? 'Ziyadah (Ayat Baru)' : 'Muraja\'ah')}
+                    wrapperStyle={{ fontSize: 10, paddingTop: 8 }}
+                    formatter={(val) => (val === 'ziyadah' ? 'Ziyadah (Baru)' : 'Muraja\'ah')}
                   />
                   <Bar dataKey="ziyadah" stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} />
                   <Bar dataKey="murajaah" stackId="a" fill="#0284C7" radius={[0, 4, 4, 0]} />

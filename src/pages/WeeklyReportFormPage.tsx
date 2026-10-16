@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams, useNavigate, useOutletContext } from 'react-router-dom'
 import {
   FileText,
   TrendingUp,
@@ -13,6 +13,7 @@ import {
   Target,
   CheckCircle2,
   AlertCircle,
+  ChevronDown,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import {
@@ -81,6 +82,8 @@ export const WeeklyReportFormPage: React.FC = () => {
   const isStaff = userRole === 'admin' || userRole === 'atasan'
   const canEdit = userRole === 'admin'
   const readOnly = !canEdit
+
+  const { onToggleSidebar } = useOutletContext<{ onToggleSidebar?: () => void }>() || {}
 
   useEffect(() => {
     if (profile && !isStaff) {
@@ -477,7 +480,7 @@ export const WeeklyReportFormPage: React.FC = () => {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 min-w-0">
       {/* 1. Header Bar */}
       <WeeklyReportHeader
         currentPekan={currentPekan}
@@ -489,29 +492,30 @@ export const WeeklyReportFormPage: React.FC = () => {
         onSave={handleSaveReport}
         onValidate={() => setIsValidationOpen(true)}
         onViewSlides={() => navigate(`/report/weekly-progress?pekan=${currentPekan}`)}
+        onToggleSidebar={onToggleSidebar}
       />
 
       {/* Feedback Alert */}
       {feedback && (
         <div
-          className={`p-3.5 rounded-xl border text-xs flex items-center justify-between gap-2 shadow-2xs ${
+          className={`p-3 sm:p-3.5 rounded-xl border text-xs flex items-center justify-between gap-2 shadow-2xs ${
             feedback.type === 'success'
               ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
               : 'bg-rose-50 border-rose-200 text-rose-900'
           }`}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             {feedback.type === 'success' ? (
               <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
             ) : (
               <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
             )}
-            <span className="font-semibold">{feedback.message}</span>
+            <span className="font-semibold truncate">{feedback.message}</span>
           </div>
           <button
             type="button"
             onClick={() => setFeedback(null)}
-            className="text-xs font-bold opacity-60 hover:opacity-100"
+            className="text-xs font-bold opacity-60 hover:opacity-100 shrink-0 p-1"
           >
             ✕
           </button>
@@ -519,7 +523,31 @@ export const WeeklyReportFormPage: React.FC = () => {
       )}
 
       {/* 2. Section Navigation Tabs (10 Sections) */}
-      <div className="bg-white p-2 rounded-2xl border border-neutral-200/90 shadow-2xs overflow-x-auto scrollbar-thin">
+      {/* Mobile Dropdown Selector (md:hidden) */}
+      <div className="md:hidden bg-white p-3 rounded-2xl border border-neutral-200/90 shadow-2xs space-y-1.5">
+        <label className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider block">
+          Pilih Bagian Laporan:
+        </label>
+        <div className="relative">
+          <select
+            value={activeTab}
+            onChange={(e) => handleTabChange(e.target.value as ReportTab)}
+            className="w-full appearance-none rounded-xl border border-neutral-200 bg-neutral-50/80 px-3.5 py-2.5 text-xs font-bold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 pr-9"
+          >
+            {REPORT_SECTION_ORDER.map((sec) => (
+              <option key={sec.key} value={sec.key}>
+                {sec.number}. {sec.title}
+              </option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-neutral-500">
+            <ChevronDown className="h-4 w-4" />
+          </div>
+        </div>
+      </div>
+
+      {/* Horizontal Scrollable Tabs Strip (Desktop & Mobile Swipe) */}
+      <div className="bg-white p-1.5 sm:p-2 rounded-2xl border border-neutral-200/90 shadow-2xs overflow-x-auto scrollbar-thin scrollbar-thumb-neutral-200">
         <div className="flex items-center gap-1.5 min-w-max">
           {REPORT_SECTION_ORDER.map((sec) => {
             const Icon = getSectionIcon(sec.key)
@@ -530,7 +558,7 @@ export const WeeklyReportFormPage: React.FC = () => {
                 key={sec.key}
                 type="button"
                 onClick={() => handleTabChange(sec.key)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
                   isActive
                     ? 'bg-neutral-900 text-white shadow-2xs'
                     : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'

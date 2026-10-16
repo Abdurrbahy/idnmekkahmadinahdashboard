@@ -55,10 +55,10 @@ export const SectionQuran: React.FC<SectionQuranProps> = ({
         </div>
       </CardHeader>
 
-      <CardContent className="p-5 space-y-5">
+      <CardContent className="p-3.5 sm:p-5 space-y-4 sm:space-y-5">
         {/* Ringkasan Akumulasi Total Ayat */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
+          <div className="p-3 sm:p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80">
             <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
               Total Ziyadah (Ayat Baru)
             </span>
@@ -67,7 +67,7 @@ export const SectionQuran: React.FC<SectionQuranProps> = ({
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-sky-50/70 border border-sky-200/80">
+          <div className="p-3 sm:p-3.5 rounded-xl bg-sky-50/70 border border-sky-200/80">
             <span className="text-[11px] font-bold uppercase tracking-wider text-sky-800">
               Total Muraja'ah
             </span>
@@ -76,7 +76,7 @@ export const SectionQuran: React.FC<SectionQuranProps> = ({
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-neutral-900 text-white shadow-2xs">
+          <div className="p-3 sm:p-3.5 rounded-xl bg-neutral-900 text-white shadow-2xs">
             <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
               Total Keseluruhan
             </span>
@@ -88,8 +88,8 @@ export const SectionQuran: React.FC<SectionQuranProps> = ({
 
         {/* Tabel Capaian Per Santri */}
         <div className="rounded-xl border border-neutral-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
+          <div className="overflow-x-auto scrollbar-thin">
+            <table className="w-full text-xs text-left min-w-[580px]">
               <thead className="bg-neutral-100/80 text-neutral-700 font-bold border-b border-neutral-200">
                 <tr>
                   <th className="py-2.5 px-3 w-12 text-center">No</th>

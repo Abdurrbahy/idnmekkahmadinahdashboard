@@ -103,7 +103,7 @@ export const SectionArabicSpeaking: React.FC<SectionArabicSpeakingProps> = ({
         </div>
       </CardHeader>
 
-      <CardContent className="p-5 space-y-6">
+      <CardContent className="p-3.5 sm:p-5 space-y-5 sm:space-y-6">
         {/* SUBBAGIAN 1: ARABIC VLOG */}
         <div className="space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
@@ -128,8 +128,8 @@ export const SectionArabicSpeaking: React.FC<SectionArabicSpeakingProps> = ({
           </div>
 
           <div className="rounded-xl border border-neutral-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
+            <div className="overflow-x-auto scrollbar-thin">
+              <table className="w-full text-xs text-left min-w-[700px]">
                 <thead className="bg-neutral-100/80 text-neutral-700 font-bold border-b border-neutral-200">
                   <tr>
                     <th className="py-2.5 px-3 w-28">Hari & Tanggal</th>
