@@ -323,7 +323,7 @@ export const QuranSubmissionSection: React.FC<QuranSubmissionSectionProps> = ({
       finalNilai = calculatedQuizNilai
     }
 
-    const submissionPayload = {
+    const submissionPayload: Omit<Submission, 'id' | 'created_at' | 'jenis'> = {
       student_id: studentId,
       subject_id: subjectId,
       tanggal: selectedDate,
@@ -332,7 +332,7 @@ export const QuranSubmissionSection: React.FC<QuranSubmissionSectionProps> = ({
       status: finalStatus,
       nilai: finalNilai,
       catatan: catatan.trim() || null,
-      rubrik_penilaian: rubrikPayload,
+      ...(activeMode === 'quran' && rubrikPayload ? { rubrik_penilaian: rubrikPayload } : {}),
     }
 
     const quranDetail =

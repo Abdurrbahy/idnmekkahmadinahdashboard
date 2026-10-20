@@ -131,14 +131,16 @@ export function parsePostgresError(error: any): string {
     return error.message
   }
   if (
-    error.code === 'PGRST200' ||
-    error.code === 'PGRST204' ||
-    error.code === '42P01' ||
-    error.message?.includes('schema cache') ||
     error.message?.includes('quiz_submission_details') ||
     error.message?.includes('kitab_bab')
   ) {
     return "Tabel kuis/bab ('quiz_submission_details' / 'kitab_bab') belum dibuat di database Supabase. Silakan jalankan script SQL 'supabase/migration_v3_5_kuis.sql' di Supabase SQL Editor."
+  }
+  if (
+    error.message?.includes('rubrik_penilaian') ||
+    (error.code === '42703' && error.message?.includes('rubrik_penilaian'))
+  ) {
+    return "Kolom 'rubrik_penilaian' belum ada di database Supabase. Silakan jalankan script SQL 'supabase/migration_v3_6_quran_rubrik_penilaian.sql' di Supabase SQL Editor."
   }
   return error.message || 'Terjadi kesalahan saat berkomunikasi dengan server.'
 }
@@ -399,7 +401,7 @@ export async function insertSubmission(
         nilai: submission.nilai !== undefined && submission.nilai !== null ? submission.nilai : null,
         catatan: submission.catatan || null,
       }
-      if (submission.rubrik_penilaian !== undefined) {
+      if (submission.rubrik_penilaian !== undefined && submission.rubrik_penilaian !== null) {
         insertPayload.rubrik_penilaian = submission.rubrik_penilaian
       }
 
@@ -409,7 +411,7 @@ export async function insertSubmission(
         .select()
         .single()
 
-      if (subError && insertPayload.rubrik_penilaian) {
+      if (subError && 'rubrik_penilaian' in insertPayload) {
         const isColumnMissing =
           subError.code === 'PGRST204' ||
           subError.code === '42703' ||
@@ -508,7 +510,7 @@ export async function updateSubmission(
         nilai: submission.nilai !== undefined && submission.nilai !== null ? submission.nilai : null,
         catatan: submission.catatan || null,
       }
-      if (submission.rubrik_penilaian !== undefined) {
+      if (submission.rubrik_penilaian !== undefined && submission.rubrik_penilaian !== null) {
         updatePayload.rubrik_penilaian = submission.rubrik_penilaian
       }
 
@@ -517,7 +519,7 @@ export async function updateSubmission(
         .update(updatePayload)
         .eq('id', id)
 
-      if (subError && updatePayload.rubrik_penilaian) {
+      if (subError && 'rubrik_penilaian' in updatePayload) {
         const isColumnMissing =
           subError.code === 'PGRST204' ||
           subError.code === '42703' ||
