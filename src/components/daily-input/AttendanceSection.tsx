@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Check, CheckCircle2, UserCheck, Save, MessageSquare, Lock, AlertCircle } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card'
 import { Button } from '../ui/button'
@@ -37,7 +37,24 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
   const [activeNoteModal, setActiveNoteModal] = useState<{ studentId: number; sessionId: number; name: string; sessionName: string } | null>(null)
   const [noteText, setNoteText] = useState('')
 
+  // Refetches (after another section saves, or when the tab regains focus)
+  // hand us a new initialLogs array. Keep the user's unsaved edits for the
+  // same date instead of silently replacing them with server data.
+  const [justSaved, setJustSaved] = useState(false)
   useEffect(() => {
+    if (!justSaved) return
+    const t = window.setTimeout(() => setJustSaved(false), 3000)
+    return () => window.clearTimeout(t)
+  }, [justSaved])
+  const dirtyRef = useRef(false)
+  const initializedDateRef = useRef<string | null>(null)
+  useEffect(() => {
+    dirtyRef.current = hasUnsavedChanges
+  }, [hasUnsavedChanges])
+
+  useEffect(() => {
+    if (dirtyRef.current && initializedDateRef.current === selectedDate) return
+    initializedDateRef.current = selectedDate
     const map: Record<number, Record<number, { status: AttendanceStatus; catatan?: string }>> = {}
     for (const student of students) {
       map[student.id] = {}
@@ -135,8 +152,10 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
     try {
       const res = await saveAttendanceLogs(logsToSave)
       if (res.success) {
+        dirtyRef.current = false
         setHasUnsavedChanges(false)
         if (onUnsavedChangeState) onUnsavedChangeState(false)
+        setJustSaved(true)
         onLogsUpdated()
       } else {
         setErrorMessage(res.error || 'Gagal menyimpan presensi.')
@@ -208,7 +227,7 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
     <Card className="border-neutral-200 bg-white shadow-xs">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-neutral-100 pb-3.5">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <UserCheck className="h-5 w-5 text-neutral-700" />
             <CardTitle>Presensi Harian 4 Sesi</CardTitle>
             {!canEdit && (
@@ -220,6 +239,16 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
             {canEdit && hasUnsavedChanges && (
               <Badge variant="warning" className="text-[10px] py-0 px-2 animate-pulse">
                 Belum Tersimpan
+              </Badge>
+            )}
+            {justSaved && !hasUnsavedChanges && (
+              <Badge variant="success" className="text-[10px] py-0 px-2" role="status">
+                Tersimpan
+              </Badge>
+            )}
+            {canEdit && !hasUnsavedChanges && !justSaved && initialLogs.length === 0 && (
+              <Badge variant="secondary" className="text-[10px] py-0 px-2 bg-amber-50 text-amber-800 border-amber-200">
+                Belum diisi — status default "Hadir"
               </Badge>
             )}
           </div>
@@ -363,6 +392,8 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
                                     : statusColors[st].inactive
                                 } ${!canEdit ? 'cursor-default opacity-85' : ''}`}
                                 title={`${statusColors[st].label} - ${student.nama} (${session.nama})`}
+                                aria-label={`${statusColors[st].label} - ${student.nama} (${session.nama})`}
+                                aria-pressed={isSelected}
                               >
                                 {shortLabel}
                               </button>
@@ -471,8 +502,10 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
                                   ? statusColors[st].active
                                   : 'bg-white text-neutral-600 border border-neutral-200 hover:bg-neutral-100'
                               } ${!canEdit ? 'opacity-85' : ''}`}
+                              aria-label={`${statusColors[st].label} - ${student.nama} (${session.nama})`}
+                              aria-pressed={isSelected}
                             >
-                              <span>{st[0].toUpperCase()}</span>
+                              <span aria-hidden="true">{st[0].toUpperCase()}</span>
                               <span className="text-[9px] font-normal opacity-90 capitalize">{st}</span>
                             </button>
                           )

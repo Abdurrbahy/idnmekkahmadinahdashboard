@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { ScaledSlide } from '@/components/weekly-report-slides/ScaledSlide'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -663,7 +664,7 @@ export const WeeklyProgressSlidesPage: React.FC = () => {
             {/* Active Slide Canvas */}
             <div className="flex justify-center">
               <div className="w-full max-w-[1280px]">
-                {renderSlide(activeSlideIndex)}
+                <ScaledSlide>{renderSlide(activeSlideIndex)}</ScaledSlide>
               </div>
             </div>
 
@@ -716,7 +717,7 @@ export const WeeklyProgressSlidesPage: React.FC = () => {
           <div className="space-y-8 flex flex-col items-center">
             {slideTitles.map((_, idx) => (
               <div key={idx} className="w-full max-w-[1280px]">
-                {renderSlide(idx)}
+                <ScaledSlide>{renderSlide(idx)}</ScaledSlide>
               </div>
             ))}
           </div>

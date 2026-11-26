@@ -75,6 +75,68 @@
   }
 }
 
+@layer base {
+  /* Visible keyboard focus everywhere (WCAG 2.4.7). Many controls use
+     focus:outline-none, so this needs !important to win on :focus-visible. */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring)) !important;
+    outline-offset: 2px !important;
+  }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(212 212 212) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgb(212 212 212);
+    border-radius: 9999px;
+  }
+
+  /* Minimal enter animations (tailwindcss-animate class names used in the codebase). */
+  .animate-in {
+    animation: enter 160ms ease-out both;
+  }
+  .fade-in {
+    --tw-enter-opacity: 0;
+  }
+  .fade-in-50 {
+    --tw-enter-opacity: 0.5;
+  }
+  .zoom-in-95 {
+    --tw-enter-scale: 0.95;
+  }
+  .slide-in-from-bottom {
+    --tw-enter-translate-y: 100%;
+  }
+}
+
+@keyframes enter {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    transform: translate3d(0, var(--tw-enter-translate-y, 0), 0) scale(var(--tw-enter-scale, 1));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in,
+  .animate-pulse {
+    animation: none !important;
+  }
+}
+
 @media print {
   @page {
     size: A4 portrait;

@@ -142,6 +142,8 @@ export const DailySummaryCard: React.FC<DailySummaryCardProps> = ({
           <p className="mt-1 text-[11px] text-neutral-400">
             {isWeekend && hadirLogs.length === 0
               ? 'Tidak ada KBM wajib di akhir pekan'
+              : attendanceLogs.length === 0
+              ? 'Presensi hari ini belum diisi'
               : attendanceRate === 100
               ? 'Semua santri hadir lengkap'
               : `${totalSessionsPossible - hadirLogs.length} sesi belum hadir`}

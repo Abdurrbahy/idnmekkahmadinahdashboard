@@ -212,7 +212,7 @@ export const WeeklyReportPage: React.FC = () => {
             </Button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
             {/* Week Navigator */}
             <div className="flex items-center gap-1 bg-neutral-100 p-0.5 rounded-lg border border-neutral-200 text-xs">
               <Button
@@ -223,7 +223,7 @@ export const WeeklyReportPage: React.FC = () => {
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="px-2 font-semibold text-neutral-800">
+              <span className="px-2 font-semibold text-neutral-800 whitespace-nowrap">
                 {pekanInfo.labelPekan}
               </span>
               <Button
@@ -241,7 +241,7 @@ export const WeeklyReportPage: React.FC = () => {
               <select
                 value={santriParam}
                 onChange={(e) => handleStudentChange(e.target.value)}
-                className="h-8 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs font-semibold text-neutral-800 focus:outline-none"
+                className="h-8 min-w-0 max-w-full rounded-lg border border-neutral-200 bg-white px-2.5 text-xs font-semibold text-neutral-800 focus:outline-none"
               >
                 <option value="all">Semua Santri</option>
                 {students.map((s) => (
@@ -513,6 +513,7 @@ export const WeeklyReportPage: React.FC = () => {
                     </div>
 
                     {/* 7-Days Matrix Table */}
+                    <div className="overflow-x-auto print:overflow-visible">
                     <table className="w-full text-left text-xs border border-neutral-200 border-collapse">
                       <thead>
                         <tr className="bg-neutral-50 border-b border-neutral-200 text-[10px] font-bold text-neutral-700">
@@ -588,6 +589,7 @@ export const WeeklyReportPage: React.FC = () => {
                         })}
                       </tbody>
                     </table>
+                    </div>
 
                     {/* Student Weekly Submissions Feed */}
                     <div className="space-y-2 pt-1.5">
@@ -618,6 +620,7 @@ export const WeeklyReportPage: React.FC = () => {
                                   </div>
 
                                   {/* Submissions Table for this Day */}
+                                  <div className="overflow-x-auto print:overflow-visible">
                                   <table className="w-full text-left text-[11px] border-collapse">
                                     <thead>
                                       <tr className="bg-neutral-50/70 border-b border-neutral-200 text-[10px] font-bold text-neutral-600">
@@ -743,6 +746,7 @@ export const WeeklyReportPage: React.FC = () => {
                                       })}
                                     </tbody>
                                   </table>
+                                  </div>
                                 </div>
                               )
                             })}

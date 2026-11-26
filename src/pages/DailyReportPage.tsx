@@ -58,6 +58,7 @@ export const DailyReportPage: React.FC = () => {
   const [activities, setActivities] = useState<Activity[]>([])
 
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   // 1. Fetch Master Data
   useEffect(() => {
@@ -77,6 +78,7 @@ export const DailyReportPage: React.FC = () => {
   // 2. Fetch Daily Data
   const loadData = useCallback(async (tgl: string) => {
     setLoading(true)
+    setLoadError(null)
     try {
       const [att, sub, mut, act] = await Promise.all([
         fetchAttendanceLogs(tgl),
@@ -89,7 +91,7 @@ export const DailyReportPage: React.FC = () => {
       setMutabaahRecords(mut)
       setActivities(act)
     } catch (e) {
-      console.warn('Error loading daily report data:', e)
+      setLoadError(e instanceof Error ? e.message : 'Gagal memuat data laporan.')
     } finally {
       setLoading(false)
     }
@@ -259,7 +261,7 @@ export const DailyReportPage: React.FC = () => {
             </Button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
             {/* Date Navigator */}
             <div className="flex items-center gap-1 bg-neutral-100 p-0.5 rounded-lg border border-neutral-200 text-xs">
               <Button
@@ -270,7 +272,7 @@ export const DailyReportPage: React.FC = () => {
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="px-2 font-semibold text-neutral-800">
+              <span className="px-2 font-semibold text-neutral-800 whitespace-nowrap">
                 {formatDateRiyadh(tanggalParam)}
               </span>
               <Button
@@ -288,7 +290,7 @@ export const DailyReportPage: React.FC = () => {
               <select
                 value={santriParam}
                 onChange={(e) => handleStudentChange(e.target.value)}
-                className="h-8 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs font-semibold text-neutral-800 focus:outline-none"
+                className="h-8 min-w-0 max-w-full rounded-lg border border-neutral-200 bg-white px-2.5 text-xs font-semibold text-neutral-800 focus:outline-none"
               >
                 <option value="all">Semua Santri</option>
                 {students.map((s) => (
@@ -327,6 +329,15 @@ export const DailyReportPage: React.FC = () => {
         {loading ? (
           <div className="py-20 text-center text-xs text-neutral-500">
             Memuat data laporan...
+          </div>
+        ) : loadError ? (
+          <div role="alert" className="py-20 text-center space-y-3 print:hidden">
+            <AlertCircle className="h-10 w-10 text-rose-400 mx-auto stroke-1" />
+            <h3 className="text-base font-bold text-neutral-800">Data laporan gagal dimuat.</h3>
+            <p className="text-xs text-neutral-500 max-w-sm mx-auto break-words">{loadError}</p>
+            <Button variant="outline" size="sm" onClick={() => loadData(tanggalParam)}>
+              Coba lagi
+            </Button>
           </div>
         ) : !hasAnyData ? (
           /* EMPTY STATE */
@@ -438,6 +449,7 @@ export const DailyReportPage: React.FC = () => {
                 </div>
               ) : (
                 <>
+                  <div className="overflow-x-auto print:overflow-visible">
                   <table className="w-full text-left text-xs border border-neutral-300 border-collapse">
                 <thead>
                   <tr className="bg-neutral-100 border-b border-neutral-300 font-bold text-neutral-800 text-[11px]">
@@ -533,6 +545,7 @@ export const DailyReportPage: React.FC = () => {
                   })}
                 </tbody>
               </table>
+                  </div>
               <div className="text-[10px] text-neutral-500 flex gap-4 pt-0.5">
                 <span><b>H</b> = Hadir</span>
                 <span><b>I</b> = Izin</span>
@@ -548,6 +561,7 @@ export const DailyReportPage: React.FC = () => {
               <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-900">
                 II. Setoran Al-Qur'an, Hafalan & Kuis
               </h3>
+              <div className="overflow-x-auto print:overflow-visible">
               <table className="w-full text-left text-xs border border-neutral-300 border-collapse">
                 <thead>
                   <tr className="bg-neutral-100 border-b border-neutral-300 font-bold text-neutral-800 text-[11px]">
@@ -666,6 +680,7 @@ export const DailyReportPage: React.FC = () => {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
 
             {/* C5. MUTABAAH YAUMIYAH (Amalan sebagai Baris, Santri sebagai Kolom) */}

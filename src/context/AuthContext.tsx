@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     const client = getSupabaseClient()
     if (!client) {
-      return { success: false, error: 'Unable to reach the server. Check your connection.' }
+      return { success: false, error: 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.' }
     }
 
     try {
@@ -104,13 +104,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           error.message?.includes('NetworkError') ||
           error.message?.includes('network')
         ) {
-          return { success: false, error: 'Unable to reach the server. Check your connection.' }
+          return { success: false, error: 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.' }
         }
-        return { success: false, error: 'Incorrect email or password.' }
+        return { success: false, error: 'Email atau password salah.' }
       }
 
       if (!data.session || !data.user) {
-        return { success: false, error: 'Incorrect email or password.' }
+        return { success: false, error: 'Email atau password salah.' }
       }
 
       const userProfile = await fetchUserProfile(data.user.id)
@@ -123,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(null)
         return {
           success: false,
-          error: 'Your account is awaiting administrator approval.',
+          error: 'Akun Anda belum diaktifkan. Hubungi administrator program.',
         }
       }
 
@@ -137,9 +137,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         err.message?.includes('NetworkError') ||
         err.message?.includes('network')
       ) {
-        return { success: false, error: 'Unable to reach the server. Check your connection.' }
+        return { success: false, error: 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.' }
       }
-      return { success: false, error: 'Incorrect email or password.' }
+      return { success: false, error: 'Email atau password salah.' }
     }
   }
 

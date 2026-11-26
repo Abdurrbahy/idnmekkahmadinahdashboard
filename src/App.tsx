@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { AuthLayout } from './layouts/AuthLayout'
@@ -6,18 +7,31 @@ import { PrintLayout } from './layouts/PrintLayout'
 import { SlideLayout } from './layouts/SlideLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { SignInPage } from './pages/SignInPage'
-import { ResetPasswordPage } from './pages/ResetPasswordPage'
-import { DailyInputPage } from './pages/DailyInputPage'
-import { DailyReportPage } from './pages/DailyReportPage'
-import { WeeklyReportPage } from './pages/WeeklyReportPage'
-import { WeeklyReportFormPage } from './pages/WeeklyReportFormPage'
-import { WeeklyProgressSlidesPage } from './pages/WeeklyProgressSlidesPage'
-import { DailyBatchReportPage } from './pages/DailyBatchReportPage'
+
+// Route-level code splitting: charts (recharts) and PDF export (jspdf,
+// html2canvas) are only downloaded on the pages that use them.
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })))
+const DailyInputPage = lazy(() => import('./pages/DailyInputPage').then((m) => ({ default: m.DailyInputPage })))
+const DailyReportPage = lazy(() => import('./pages/DailyReportPage').then((m) => ({ default: m.DailyReportPage })))
+const WeeklyReportPage = lazy(() => import('./pages/WeeklyReportPage').then((m) => ({ default: m.WeeklyReportPage })))
+const WeeklyReportFormPage = lazy(() => import('./pages/WeeklyReportFormPage').then((m) => ({ default: m.WeeklyReportFormPage })))
+const WeeklyProgressSlidesPage = lazy(() => import('./pages/WeeklyProgressSlidesPage').then((m) => ({ default: m.WeeklyProgressSlidesPage })))
+const DailyBatchReportPage = lazy(() => import('./pages/DailyBatchReportPage').then((m) => ({ default: m.DailyBatchReportPage })))
+
+function RouteFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center" role="status" aria-live="polite">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-900" />
+      <span className="sr-only">Memuat halaman…</span>
+    </div>
+  )
+}
 
 export function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           {/* Public Auth Routes */}
           <Route element={<AuthLayout />}>
@@ -68,6 +82,7 @@ export function App() {
           {/* Fallback route */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </AuthProvider>
   )

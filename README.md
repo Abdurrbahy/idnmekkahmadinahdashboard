@@ -18,10 +18,9 @@ npm run dev
 npm run build
 ```
 
-## 👥 3 Akun Bawaan (1-Klik di Halaman Login):
-- **🛡️ Admin**: `admin@idn.sch.id` (Password: `idn123`) — Akses penuh input, edit, & simpan.
-- **👔 Atasan**: `atasan@idn.sch.id` (Password: `idn123`) — Akses pantau & hanya lihat (Read-Only).
-- **👨‍👩‍👦 Walsan**: `walsan@idn.sch.id` (Password: `idn123`) — Akses orang tua santri (Read-Only).
+## 👥 Akun & Peran
+Tidak ada akun bawaan. Akun baru selalu berperan `walsan` dan nonaktif sampai diaktifkan admin
+(lihat BAGIAN 3 di [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md)). Jangan menulis kredensial di repositori.
 
 ## 🗄️ Database Supabase
-File skrip SQL master bersih: `supabase/schema_master.sql`.
+Skema aktif: `supabase/schema_master_v3.sql` (plus file `migration_v3_*.sql`).

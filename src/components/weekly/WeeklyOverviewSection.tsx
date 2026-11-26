@@ -183,11 +183,11 @@ export const WeeklyOverviewSection: React.FC<WeeklyOverviewSectionProps> = ({
     <div className="space-y-6">
       {/* Top Period Card */}
       <div className="rounded-xl border border-neutral-200 bg-white p-3.5 sm:p-4 shadow-2xs">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-sm font-bold text-neutral-900">
             {pekanInfo.labelPekan}
           </h2>
-          <Badge variant="outline" className="border-neutral-200 text-neutral-600 bg-neutral-50 text-[10px]">
+          <Badge variant="outline" className="border-neutral-200 text-neutral-600 bg-neutral-50 text-[10px] whitespace-nowrap shrink-0">
             5 Hari Aktif (Ahad – Kamis)
           </Badge>
         </div>
@@ -211,7 +211,7 @@ export const WeeklyOverviewSection: React.FC<WeeklyOverviewSectionProps> = ({
               <span className="text-2xl font-bold tracking-tight text-neutral-900">
                 {totalPresensiPercent}%
               </span>
-              <Badge variant="success" className="text-[10px] py-0 px-1.5 font-bold">
+              <Badge variant="success" className="text-[10px] py-0 px-1.5 font-bold whitespace-nowrap">
                 5 Hari Aktif
               </Badge>
             </div>

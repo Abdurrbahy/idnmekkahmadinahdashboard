@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Sparkles, Check, Save, Wand2, Minus, Plus, Lock, AlertCircle } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card'
 import { Button } from '../ui/button'
@@ -33,7 +33,23 @@ export const MutabaahSection: React.FC<MutabaahSectionProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [activeMobileStudentId, setActiveMobileStudentId] = useState<number>(students[0]?.id || 1)
 
+  // Keep unsaved edits when a refetch (e.g. after attendance is saved) hands
+  // us a new initialRecords array for the same date.
+  const [justSaved, setJustSaved] = useState(false)
   useEffect(() => {
+    if (!justSaved) return
+    const t = window.setTimeout(() => setJustSaved(false), 3000)
+    return () => window.clearTimeout(t)
+  }, [justSaved])
+  const dirtyRef = useRef(false)
+  const initializedDateRef = useRef<string | null>(null)
+  useEffect(() => {
+    dirtyRef.current = hasUnsavedChanges
+  }, [hasUnsavedChanges])
+
+  useEffect(() => {
+    if (dirtyRef.current && initializedDateRef.current === selectedDate) return
+    initializedDateRef.current = selectedDate
     const map: Record<number, Record<number, { status: 'done' | 'not_done'; jumlah?: number; catatan?: string }>> = {}
     for (const student of students) {
       map[student.id] = {}
@@ -160,8 +176,10 @@ export const MutabaahSection: React.FC<MutabaahSectionProps> = ({
     try {
       const res = await saveMutabaahRecords(recordsToSave)
       if (res.success) {
+        dirtyRef.current = false
         setHasUnsavedChanges(false)
         if (onUnsavedChangeState) onUnsavedChangeState(false)
+        setJustSaved(true)
         onRecordsUpdated()
       } else {
         setErrorMessage(res.error || 'Gagal menyimpan mutabaah.')
@@ -212,7 +230,7 @@ export const MutabaahSection: React.FC<MutabaahSectionProps> = ({
     <Card className="border-neutral-200 bg-white shadow-xs">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-neutral-100 pb-3.5">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Sparkles className="h-5 w-5 text-purple-600" />
             <CardTitle>Mutabaah Yaumiyah ({activities.length} Amalan Harian)</CardTitle>
             {!canEdit && (
@@ -224,6 +242,11 @@ export const MutabaahSection: React.FC<MutabaahSectionProps> = ({
             {canEdit && hasUnsavedChanges && (
               <Badge variant="warning" className="text-[10px] py-0 px-2 animate-pulse">
                 Belum Tersimpan
+              </Badge>
+            )}
+            {justSaved && !hasUnsavedChanges && (
+              <Badge variant="success" className="text-[10px] py-0 px-2" role="status">
+                Tersimpan
               </Badge>
             )}
           </div>
@@ -324,6 +347,7 @@ export const MutabaahSection: React.FC<MutabaahSectionProps> = ({
                           type="button"
                           disabled={!canEdit}
                           onClick={() => toggleBoolean(student.id, act.id)}
+                          aria-pressed={isDone}
                           className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs font-medium transition-all ${
                             isDone
                               ? isBonus
@@ -487,6 +511,7 @@ export const MutabaahSection: React.FC<MutabaahSectionProps> = ({
                         type="button"
                         disabled={!canEdit}
                         onClick={() => toggleBoolean(student.id, act.id)}
+                        aria-pressed={isDone}
                         className={`w-full min-h-[44px] flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
                           isDone
                             ? isBonus

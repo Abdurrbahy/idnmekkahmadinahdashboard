@@ -1,10 +1,11 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { getSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import logoFull from '@/assets/logo-idn-mekkah-madinah.png'
 
 export const SignInPage: React.FC = () => {
   const { signIn, user, isActive, loading: authLoading } = useAuth()
@@ -26,6 +27,22 @@ export const SignInPage: React.FC = () => {
 
   const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/'
 
+  const closeForgot = () => {
+    setIsForgotOpen(false)
+    setResetError(null)
+    setResetSuccess(false)
+  }
+
+  // Close the reset dialog with Escape
+  useEffect(() => {
+    if (!isForgotOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeForgot()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isForgotOpen])
+
   // Redirect if already authenticated
   if (!authLoading && user && isActive) {
     return <Navigate to={from} replace />
@@ -37,7 +54,7 @@ export const SignInPage: React.FC = () => {
 
     const cleanEmail = email.trim()
     if (!cleanEmail || !password) {
-      setError('Please enter your email and password.')
+      setError('Masukkan email dan password Anda.')
       return
     }
 
@@ -48,7 +65,7 @@ export const SignInPage: React.FC = () => {
     if (result.success) {
       navigate(from, { replace: true })
     } else {
-      setError(result.error || 'Incorrect email or password.')
+      setError(result.error || 'Email atau password salah.')
     }
   }
 
@@ -164,12 +181,17 @@ export const SignInPage: React.FC = () => {
       {/* RIGHT COLUMN: Sign in form */}
       <div className="flex items-center justify-center p-6 sm:p-12 lg:p-16 bg-white">
         <div className="w-full max-w-[360px] space-y-6">
+          <img
+            src={logoFull}
+            alt="IDN Boarding School — Mekkah & Madinah"
+            className="h-10 w-auto lg:hidden"
+          />
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
-              Sign in
+              Masuk
             </h1>
-            <p className="text-xs text-neutral-500 mt-1">
-              Enter your credentials to access the dashboard.
+            <p className="text-sm text-neutral-500 mt-1">
+              Masuk untuk mengakses dashboard santri Mekkah &amp; Madinah.
             </p>
           </div>
 
@@ -197,8 +219,11 @@ export const SignInPage: React.FC = () => {
                 </label>
                 <button
                   type="button"
-                  onClick={() => setIsForgotOpen(true)}
-                  className="text-[11px] text-neutral-500 hover:text-neutral-900 font-medium transition-colors"
+                  onClick={() => {
+                    setForgotEmail((prev) => prev || email.trim())
+                    setIsForgotOpen(true)
+                  }}
+                  className="-my-2 py-2 px-1 text-xs text-neutral-600 hover:text-neutral-900 font-medium underline-offset-2 hover:underline transition-colors"
                 >
                   Lupa password?
                 </button>
@@ -207,7 +232,7 @@ export const SignInPage: React.FC = () => {
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
+                  placeholder="Masukkan password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
@@ -218,7 +243,8 @@ export const SignInPage: React.FC = () => {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                  aria-pressed={showPassword}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -226,7 +252,7 @@ export const SignInPage: React.FC = () => {
             </div>
 
             {error && (
-              <p className="text-xs text-red-600 font-medium pt-1">
+              <p role="alert" className="text-xs text-red-600 font-medium pt-1">
                 {error}
               </p>
             )}
@@ -237,25 +263,38 @@ export const SignInPage: React.FC = () => {
               className="w-full h-10 bg-neutral-900 text-white hover:bg-neutral-800 rounded-lg text-xs font-semibold shadow-none transition-colors"
             >
               {loading ? (
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" aria-hidden="true" />
+                  <span className="ml-2">Memproses…</span>
+                </>
               ) : (
-                'Sign in'
+                'Masuk'
               )}
             </Button>
           </form>
 
           <p className="text-xs text-neutral-400 text-center pt-2">
-            Access is provisioned by the program administrator.
+            Akun dibuat dan diaktifkan oleh administrator program.
           </p>
         </div>
       </div>
 
       {/* FORGOT PASSWORD MODAL */}
       {isForgotOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl border border-neutral-200 space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeForgot()
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="forgot-title"
+            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl border border-neutral-200 space-y-4 animate-in fade-in zoom-in-95"
+          >
             <div>
-              <h2 className="text-base font-bold text-neutral-900">
+              <h2 id="forgot-title" className="text-base font-bold text-neutral-900">
                 Reset Password
               </h2>
               <p className="text-xs text-neutral-500 mt-1">
@@ -272,10 +311,7 @@ export const SignInPage: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setIsForgotOpen(false)
-                    setResetSuccess(false)
-                  }}
+                  onClick={closeForgot}
                   className="mt-2 text-xs w-full"
                 >
                   Tutup
@@ -284,8 +320,11 @@ export const SignInPage: React.FC = () => {
             ) : (
               <form onSubmit={handleForgotSubmit} className="space-y-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-neutral-700">Email Akun</label>
+                  <label htmlFor="forgot-email" className="text-xs font-medium text-neutral-700">Email Akun</label>
                   <Input
+                    id="forgot-email"
+                    autoFocus
+                    autoComplete="email"
                     type="email"
                     placeholder="name@example.com"
                     value={forgotEmail}
@@ -296,7 +335,7 @@ export const SignInPage: React.FC = () => {
                 </div>
 
                 {resetError && (
-                  <p className="text-xs text-red-600 font-medium">
+                  <p role="alert" className="text-xs text-red-600 font-medium">
                     {resetError}
                   </p>
                 )}
@@ -306,10 +345,7 @@ export const SignInPage: React.FC = () => {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      setIsForgotOpen(false)
-                      setResetError(null)
-                    }}
+                    onClick={closeForgot}
                     className="text-xs"
                   >
                     Batal

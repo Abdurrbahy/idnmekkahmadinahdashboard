@@ -52,6 +52,18 @@ export default {
           foreground: "hsl(var(--card-foreground))",
         },
       },
+      // Tokens used throughout the codebase that only exist in Tailwind v4.
+      // Without them these classes compiled to nothing on Tailwind v3.
+      boxShadow: {
+        '2xs': '0 1px 0 0 rgb(0 0 0 / 0.05)',
+        xs: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+      },
+      backdropBlur: {
+        xs: '2px',
+      },
+      spacing: {
+        '0.2': '0.0625rem',
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

@@ -124,6 +124,9 @@ export async function testSupabaseConnection(url?: string, key?: string): Promis
 
 export function parsePostgresError(error: any): string {
   if (!error) return 'Terjadi kesalahan sistem.'
+  if (/failed to fetch|networkerror|network request failed|load failed/i.test(error.message || '')) {
+    return 'Koneksi ke server terputus. Data belum tersimpan — periksa internet lalu tekan simpan lagi.'
+  }
   if (error.code === '42501' || error.message?.includes('violates row-level security')) {
     return 'Anda tidak memiliki hak akses untuk mengubah data ini (Hanya Admin aktif yang memiliki izin tulis).'
   }
@@ -143,6 +146,19 @@ export function parsePostgresError(error: any): string {
     return "Kolom 'rubrik_penilaian' belum ada di database Supabase. Silakan jalankan script SQL 'supabase/migration_v3_6_quran_rubrik_penilaian.sql' di Supabase SQL Editor."
   }
   return error.message || 'Terjadi kesalahan saat berkomunikasi dengan server.'
+}
+
+// Daily record fetchers throw instead of returning [] so a failed load is never
+// mistaken for "no data yet" (which would let a save overwrite real records).
+function toLoadError(e: unknown, label: string): Error {
+  const msg = e instanceof Error ? e.message : String(e)
+  if (/failed to fetch|networkerror|network|load failed/i.test(msg)) {
+    return new Error(`Gagal memuat data ${label}: koneksi ke server terputus. Periksa internet lalu tekan "Coba lagi".`)
+  }
+  if (/jwt|expired|invalid token/i.test(msg)) {
+    return new Error(`Gagal memuat data ${label}: sesi login berakhir. Silakan keluar lalu masuk kembali.`)
+  }
+  return new Error(`Gagal memuat data ${label}: ${msg}`)
 }
 
 // --- DATA ACCESS SERVICES ---
@@ -191,9 +207,10 @@ export async function fetchAttendanceLogs(tanggal: string): Promise<AttendanceLo
   if (client) {
     try {
       const { data, error } = await client.from('attendance_logs').select('*').eq('tanggal', tanggal)
-      if (!error && data) return data as AttendanceLog[]
+      if (error) throw new Error(error.message)
+      return (data || []) as AttendanceLog[]
     } catch (e) {
-      console.warn('Supabase fetch attendance logs error:', e)
+      throw toLoadError(e, 'presensi')
     }
   }
   return []
@@ -366,17 +383,18 @@ export async function fetchSubmissions(tanggal: string): Promise<Submission[]> {
         if (qError) {
           console.warn('quran_details fetchSubmissions failed, falling back to basic:', qError.message)
           // Stage 3: Fallback to basic submissions
-          const { data: bData } = await client
+          const { data: bData, error: bError } = await client
             .from('submissions')
             .select(`*, student:students(*), subject:subjects(*)`)
             .eq('tanggal', tanggal)
             .order('created_at', { ascending: false })
 
-          if (bData) return bData as Submission[]
+          if (bError) throw new Error(bError.message)
+          return (bData || []) as Submission[]
         }
       }
     } catch (e) {
-      console.warn('Supabase fetch submissions error:', e)
+      throw toLoadError(e, "setoran Qur'an")
     }
   }
   return []
@@ -672,9 +690,10 @@ export async function fetchMutabaahRecords(tanggal: string): Promise<MutabaahRec
   if (client) {
     try {
       const { data, error } = await client.from('mutabaah_records').select('*').eq('tanggal', tanggal)
-      if (!error && data) return data as MutabaahRecord[]
+      if (error) throw new Error(error.message)
+      return (data || []) as MutabaahRecord[]
     } catch (e) {
-      console.warn('Supabase fetch mutabaah records error:', e)
+      throw toLoadError(e, 'mutabaah')
     }
   }
   return []
@@ -733,9 +752,10 @@ export async function fetchActivities(tanggal: string): Promise<Activity[]> {
         .eq('tanggal', tanggal)
         .order('created_at', { ascending: false })
 
-      if (!error && data) return data as Activity[]
+      if (error) throw new Error(error.message)
+      return (data || []) as Activity[]
     } catch (e) {
-      console.warn('Supabase fetch activities error:', e)
+      throw toLoadError(e, 'kegiatan')
     }
   }
   return []

@@ -324,7 +324,7 @@ export const DailyBatchReportPage: React.FC = () => {
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
               {/* Week Navigator */}
               <div className="flex items-center gap-1 bg-neutral-100 p-0.5 rounded-lg border border-neutral-200 text-xs">
                 <Button
@@ -335,7 +335,7 @@ export const DailyBatchReportPage: React.FC = () => {
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="px-2 font-semibold text-neutral-800">
+                <span className="px-2 font-semibold text-neutral-800 whitespace-nowrap">
                   {pekanInfo.labelPekan}
                 </span>
                 <Button
@@ -353,7 +353,7 @@ export const DailyBatchReportPage: React.FC = () => {
                 <select
                   value={selectedStudent?.id || ''}
                   onChange={(e) => handleSelectStudent(Number(e.target.value))}
-                  className="h-8 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs font-semibold text-neutral-800 focus:outline-none"
+                  className="h-8 min-w-0 max-w-full rounded-lg border border-neutral-200 bg-white px-2.5 text-xs font-semibold text-neutral-800 focus:outline-none"
                 >
                   <option value="" disabled>
                     Pilih Santri...
@@ -586,6 +586,7 @@ export const DailyBatchReportPage: React.FC = () => {
                         </div>
                       ) : (
                         <div className="border border-neutral-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                          <div className="overflow-x-auto print:overflow-visible">
                           <table className="w-full text-left text-xs border-collapse">
                             <thead>
                               <tr className="bg-neutral-100 border-b border-neutral-200 text-[10px] font-bold text-neutral-700">
@@ -673,6 +674,7 @@ export const DailyBatchReportPage: React.FC = () => {
                               })}
                             </tbody>
                           </table>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -752,6 +754,7 @@ export const DailyBatchReportPage: React.FC = () => {
                           <h4 className="font-bold text-[11px] uppercase tracking-wider text-neutral-800">
                             I. Presensi Harian (4 Sesi)
                           </h4>
+                          <div className="overflow-x-auto print:overflow-visible">
                           <table className="w-full text-left border border-neutral-300 border-collapse">
                             <thead>
                               <tr className="bg-neutral-100 border-b border-neutral-300 font-bold text-neutral-800 text-[10px]">
@@ -794,6 +797,7 @@ export const DailyBatchReportPage: React.FC = () => {
                               </tr>
                             </tbody>
                           </table>
+                          </div>
                         </div>
 
                         {/* 2. Setoran Qur'an & Pembelajaran */}
@@ -806,6 +810,7 @@ export const DailyBatchReportPage: React.FC = () => {
                               Tidak ada setoran hafalan atau kuis pada tanggal ini.
                             </p>
                           ) : (
+                            <div className="overflow-x-auto print:overflow-visible">
                             <table className="w-full text-left border border-neutral-300 border-collapse text-xs">
                               <thead>
                                 <tr className="bg-neutral-100 border-b border-neutral-300 font-bold text-neutral-800 text-[10px]">
@@ -896,6 +901,7 @@ export const DailyBatchReportPage: React.FC = () => {
                                 })}
                               </tbody>
                             </table>
+                            </div>
                           )}
                         </div>
 
@@ -905,6 +911,7 @@ export const DailyBatchReportPage: React.FC = () => {
                             III. Mutabaah Yaumiyah (Amalan Harian)
                           </h4>
                           <div className="border border-neutral-300 rounded overflow-hidden">
+                            <div className="overflow-x-auto print:overflow-visible">
                             <table className="w-full text-left border-collapse text-xs">
                               <thead>
                                 <tr className="bg-neutral-100 border-b border-neutral-300 font-bold text-neutral-800 text-[10px]">
@@ -958,6 +965,7 @@ export const DailyBatchReportPage: React.FC = () => {
                                   })}
                               </tbody>
                             </table>
+                            </div>
                           </div>
                         </div>
 
